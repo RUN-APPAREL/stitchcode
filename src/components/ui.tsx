@@ -3,85 +3,99 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { IconCheck, IconInfo, IconAlert, IconX } from "./icons";
+import { motion, AnimatePresence } from "motion/react";
+import * as RadixSelect from "@radix-ui/react-select";
+import * as RadixTooltip from "@radix-ui/react-tooltip";
+import { Check, ChevronDown, Info, X, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { isValidHex } from "../lib/qr";
 
 /* ------------------------------------------------------------------ */
-/* Hooks                                                               */
+/* Toasts                                                              */
 /* ------------------------------------------------------------------ */
-
-export function useLocalStorage<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : initial;
-    } catch {
-      return initial;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      /* storage full or unavailable — non-fatal */
-    }
-  }, [key, value]);
-  return [value, setValue] as const;
+type ToastKind = "success" | "error" | "info";
+interface Toast {
+  id: number;
+  kind: ToastKind;
+  msg: string;
 }
+const ToastCtx = createContext<(kind: ToastKind, msg: string) => void>(() => {});
+export const useToast = () => useContext(ToastCtx);
 
-export function useDebounced<T>(value: T, ms = 700): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return debounced;
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const idRef = useRef(0);
+  const push = useCallback((kind: ToastKind, msg: string) => {
+    const id = ++idRef.current;
+    setToasts((t) => [...t.slice(-3), { id, kind, msg }]);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
+  }, []);
+  return (
+    <ToastCtx.Provider value={push}>
+      {children}
+      <div className="pointer-events-none fixed bottom-5 left-1/2 z-[90] flex w-[min(92vw,420px)] -translate-x-1/2 flex-col gap-2">
+        <AnimatePresence>
+          {toasts.map((t) => (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, y: 16, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 420, damping: 28 }}
+              className="pointer-events-auto flex items-center gap-2.5 rounded-full border-[1.5px] border-ink bg-ink px-4 py-2.5 text-[12.5px] font-bold text-bg shadow-brutal-accent"
+            >
+              {t.kind === "success" && <CheckCircle2 size={15} className="shrink-0 text-ok" />}
+              {t.kind === "error" && <AlertTriangle size={15} className="shrink-0 text-danger" />}
+              {t.kind === "info" && <Info size={15} className="shrink-0 text-accent" />}
+              <span className="truncate">{t.msg}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </ToastCtx.Provider>
+  );
 }
 
 /* ------------------------------------------------------------------ */
 /* Scroll reveal                                                       */
 /* ------------------------------------------------------------------ */
-
 export function Reveal({
   children,
-  delay = 0,
   className = "",
+  stagger = false,
   as: Tag = "div",
 }: {
   children: ReactNode;
-  delay?: number;
   className?: string;
-  as?: "div" | "section" | "li" | "article";
+  stagger?: boolean;
+  as?: "div" | "section" | "ul" | "span";
 }) {
   const ref = useRef<HTMLElement | null>(null);
-  const [shown, setShown] = useState(false);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          setShown(true);
-          io.disconnect();
-        }
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            el.classList.add("is-in");
+            io.disconnect();
+          }
+        });
       },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
+      { threshold: 0.14 },
     );
     io.observe(el);
     return () => io.disconnect();
   }, []);
-
   return (
     <Tag
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ref={ref as any}
-      data-reveal
-      className={`${className} ${shown ? "revealed" : ""}`}
-      style={{ ["--reveal-delay" as string]: `${delay}ms` }}
+      ref={ref as never}
+      className={`${stagger ? "stagger" : "reveal"} ${className}`}
     >
       {children}
     </Tag>
@@ -89,97 +103,149 @@ export function Reveal({
 }
 
 /* ------------------------------------------------------------------ */
-/* Toasts                                                              */
+/* Pill button — chunky, tactile, spring physics                       */
 /* ------------------------------------------------------------------ */
-
-export interface Toast {
-  id: number;
-  kind: "success" | "info" | "error";
-  text: string;
-}
-
-const ToastCtx = createContext<(kind: Toast["kind"], text: string) => void>(() => {});
-export const useToast = () => useContext(ToastCtx);
-
-export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const idRef = useRef(0);
-
-  const push = useCallback((kind: Toast["kind"], text: string) => {
-    const id = ++idRef.current;
-    setToasts((t) => [...t.slice(-3), { id, kind, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3400);
-  }, []);
-
+export function Pill({
+  children,
+  onClick,
+  variant = "primary",
+  className = "",
+  disabled,
+  type = "button",
+  title,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  variant?: "primary" | "dark" | "ghost";
+  className?: string;
+  disabled?: boolean;
+  type?: "button" | "submit";
+  title?: string;
+}) {
+  const base =
+    "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-extrabold uppercase tracking-[0.08em] border-[1.5px] border-ink transition-colors select-none";
+  const variants = {
+    primary: "bg-accent text-accent-ink shadow-brutal",
+    dark: "bg-ink text-bg shadow-brutal-accent",
+    ghost: "bg-surface text-ink shadow-brutal-sm",
+  }[variant];
   return (
-    <ToastCtx.Provider value={push}>
+    <motion.button
+      type={type}
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      whileHover={disabled ? undefined : { scale: 1.03, y: -1 }}
+      whileTap={disabled ? undefined : { scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      className={`${base} ${variants} ${
+        disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+      } ${className}`}
+    >
       {children}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 items-end">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="toast-in flex items-center gap-2.5 rounded-[10px] border-[1.5px] border-ink-950 bg-cream text-ink-950 pl-3 pr-2 py-2.5 shadow-hard max-w-xs"
-            role="status"
-          >
-            <span
-              className={`flex h-5 w-5 items-center justify-center rounded-full ${
-                t.kind === "success"
-                  ? "bg-ink-950 text-moss"
-                  : t.kind === "error"
-                    ? "bg-rust text-ink-950"
-                    : "bg-ink-950 text-amber"
-              }`}
-            >
-              {t.kind === "error" ? <IconAlert size={11} /> : <IconCheck size={11} />}
-            </span>
-            <p className="text-[13px] font-bold leading-tight">{t.text}</p>
-            <button
-              onClick={() => setToasts((x) => x.filter((y) => y.id !== t.id))}
-              className="ml-1 rounded p-1 text-ink-950/50 hover:text-ink-950 transition-colors"
-              aria-label="Dismiss"
-            >
-              <IconX size={12} />
-            </button>
-          </div>
-        ))}
-      </div>
-    </ToastCtx.Provider>
+    </motion.button>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Controls                                                            */
+/* Industrial card — asymmetric, top accent stripe                     */
 /* ------------------------------------------------------------------ */
+export function IndustrialCard({
+  children,
+  stripe = "var(--t-accent)",
+  className = "",
+  id,
+}: {
+  children: ReactNode;
+  stripe?: string;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <section
+      id={id}
+      className={`relative overflow-hidden rounded-[14px] border-[1.5px] border-ink bg-surface shadow-brutal-sm ${className}`}
+    >
+      {/* top accent stripe with geometric cue */}
+      <div className="flex h-[7px] w-full items-stretch" style={{ background: stripe }}>
+        <div className="h-full w-10 bg-ink/85" />
+        <div className="ml-1 h-full w-2.5 bg-ink/40" />
+        <div className="ml-1 h-full w-1.5 bg-ink/25" />
+      </div>
+      {children}
+    </section>
+  );
+}
 
+/* ------------------------------------------------------------------ */
+/* Monospace telemetry badge  [ ✓ LABEL ]                              */
+/* ------------------------------------------------------------------ */
+export function Tele({
+  children,
+  tone = "neutral",
+  className = "",
+}: {
+  children: ReactNode;
+  tone?: "ok" | "warn" | "danger" | "neutral" | "accent";
+  className?: string;
+}) {
+  const tones = {
+    ok: "border-ok/50 text-ok",
+    warn: "border-warn/50 text-warn",
+    danger: "border-danger/50 text-danger",
+    accent: "border-accent/60 text-ink bg-accent/15",
+    neutral: "border-line text-ink-dim",
+  }[tone];
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-[5px] border px-2 py-[3px] font-mono text-[10px] font-bold uppercase tracking-[0.12em] ${tones} ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Segmented control                                                   */
+/* ------------------------------------------------------------------ */
 export function Seg<T extends string>({
   options,
   value,
   onChange,
-  size = "md",
+  className = "",
 }: {
   options: Array<{ value: T; label: ReactNode; title?: string }>;
   value: T;
   onChange: (v: T) => void;
-  size?: "sm" | "md";
+  className?: string;
 }) {
+  const gid = useId();
   return (
-    <div className="flex rounded-[10px] border-[1.5px] border-line-soft bg-ink-850 p-1 gap-1">
-      {options.map((opt) => {
-        const active = opt.value === value;
+    <div
+      className={`inline-flex w-full rounded-full border-[1.5px] border-ink bg-surface2 p-1 ${className}`}
+      role="tablist"
+    >
+      {options.map((o) => {
+        const active = o.value === value;
         return (
           <button
-            key={opt.value}
-            title={opt.title}
-            onClick={() => onChange(opt.value)}
-            className={`flex-1 rounded-[7px] font-bold transition-all duration-150 ${
-              size === "sm" ? "px-2 py-1 text-[11.5px]" : "px-2.5 py-1.5 text-[12.5px]"
-            } ${
-              active
-                ? "bg-cream text-ink-950 shadow-[2px_2px_0_0_var(--color-ink-950)]"
-                : "text-muted hover:text-cream"
+            key={o.value}
+            role="tab"
+            aria-selected={active}
+            title={o.title}
+            onClick={() => onChange(o.value)}
+            className={`relative flex-1 rounded-full px-2 py-1.5 text-[11.5px] font-extrabold uppercase tracking-[0.05em] transition-colors ${
+              active ? "text-accent-ink" : "text-ink-dim hover:text-ink"
             }`}
           >
-            {opt.label}
+            {active && (
+              <motion.span
+                layoutId={`seg-pill-${gid}`}
+                className="absolute inset-0 rounded-full bg-ink"
+                transition={{ type: "spring", stiffness: 500, damping: 32 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center justify-center gap-1">{o.label}</span>
           </button>
         );
       })}
@@ -187,65 +253,38 @@ export function Seg<T extends string>({
   );
 }
 
-export function Field({
-  label,
-  hint,
-  error,
-  children,
-  trailing,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  trailing?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <label className="block">
-      <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-cream-dim">
-          {label}
-        </span>
-        {trailing ??
-          (hint && <span className="text-[11px] font-medium text-muted">{hint}</span>)}
-      </div>
-      {children}
-      {error && (
-        <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-bold text-rust">
-          <IconAlert size={12} /> {error}
-        </p>
-      )}
-    </label>
-  );
-}
-
+/* ------------------------------------------------------------------ */
+/* Slider row                                                          */
+/* ------------------------------------------------------------------ */
 export function SliderRow({
   label,
   value,
-  display,
   min,
   max,
   step = 1,
   onChange,
-  warn,
+  format,
+  tip,
 }: {
   label: string;
   value: number;
-  display: string;
   min: number;
   max: number;
   step?: number;
   onChange: (v: number) => void;
-  warn?: string;
+  format?: (v: number) => string;
+  tip?: string;
 }) {
-  const fill = ((value - min) / (max - min)) * 100;
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-cream-dim">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
           {label}
+          {tip && <Tip text={tip} />}
         </span>
-        <span className="chip !py-1 font-mono !text-[11px] !text-amber">{display}</span>
+        <span className="rounded-[5px] border border-line bg-surface2 px-1.5 py-[1px] font-mono text-[11px] font-bold text-ink">
+          {format ? format(value) : value}
+        </span>
       </div>
       <input
         type="range"
@@ -253,18 +292,16 @@ export function SliderRow({
         max={max}
         step={step}
         value={value}
-        style={{ ["--fill" as string]: `${fill}%` }}
         onChange={(e) => onChange(Number(e.target.value))}
+        className="h-[5px] w-full cursor-pointer appearance-none rounded-full bg-surface2 accent-[var(--t-accent)]"
       />
-      {warn && (
-        <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-bold text-rust">
-          <IconAlert size={12} /> {warn}
-        </p>
-      )}
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Colour field                                                        */
+/* ------------------------------------------------------------------ */
 export function ColorField({
   label,
   value,
@@ -276,74 +313,166 @@ export function ColorField({
 }) {
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
-
-  const commit = (v: string) => {
-    const t = v.trim();
-    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(t)) onChange(t);
-    else if (/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(t)) onChange(`#${t}`);
-  };
-
   return (
-    <div className="flex-1">
-      <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-[0.08em] text-cream-dim">
-        {label}
-      </span>
-      <div className="flex items-center gap-2 rounded-[10px] border-[1.5px] border-line-soft bg-ink-850 p-1.5 pl-2">
-        <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-[7px] border border-line">
+    <div>
+      <span className="mb-1.5 block text-[12px] font-bold text-ink-dim">{label}</span>
+      <div className="flex items-center gap-2 rounded-full border-[1.5px] border-ink bg-surface p-1 pl-1.5 focus-within:shadow-brutal-sm">
+        <label
+          className="relative h-7 w-9 shrink-0 cursor-pointer overflow-hidden rounded-full border border-ink"
+          style={{ background: value }}
+        >
           <input
             type="color"
-            value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#000000"}
+            value={isValidHex(value) ? (value.startsWith("#") ? value : `#${value}`) : "#000000"}
             onChange={(e) => onChange(e.target.value)}
-            className="absolute -inset-1 h-[calc(100%+8px)] w-[calc(100%+8px)]"
-            aria-label={`${label} colour`}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            aria-label={`${label} colour picker`}
           />
-        </span>
+        </label>
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => commit(text)}
-          onKeyDown={(e) => e.key === "Enter" && commit(text)}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (isValidHex(e.target.value)) onChange(e.target.value);
+          }}
           spellCheck={false}
-          className="w-full bg-transparent font-mono text-[13px] font-medium text-cream outline-none"
-          aria-label={`${label} hex value`}
+          className="w-full bg-transparent font-mono text-[12px] font-bold uppercase text-ink outline-none"
         />
       </div>
     </div>
   );
 }
 
-export function PanelHeading({
-  kicker,
-  title,
-  right,
+/* ------------------------------------------------------------------ */
+/* 2×2 spec grid cell                                                  */
+/* ------------------------------------------------------------------ */
+export function SpecCell({
+  label,
+  value,
+  hint,
+  tone = "neutral",
 }: {
-  kicker: string;
-  title: string;
-  right?: ReactNode;
+  label: string;
+  value: ReactNode;
+  hint?: string;
+  tone?: "ok" | "warn" | "danger" | "neutral";
 }) {
+  const valueTone = {
+    ok: "text-ok",
+    warn: "text-warn",
+    danger: "text-danger",
+    neutral: "text-ink",
+  }[tone];
   return (
-    <div className="mb-4 flex items-end justify-between gap-3">
-      <div>
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber">
-          {kicker}
-        </p>
-        <h2 className="font-display text-[19px] font-semibold leading-tight text-cream">
-          {title}
-        </h2>
-      </div>
-      {right}
+    <div className="flex flex-col gap-1 rounded-[10px] border border-line bg-surface2/70 px-3 py-2.5">
+      <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+        {label}
+      </span>
+      <span className={`font-mono text-[14px] font-bold leading-tight ${valueTone}`}>{value}</span>
+      {hint && <span className="text-[10.5px] font-medium leading-snug text-ink-muted">{hint}</span>}
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Radix tooltip                                                       */
+/* ------------------------------------------------------------------ */
+export function Tip({ text, children }: { text: string; children?: ReactNode }) {
+  return (
+    <RadixTooltip.Provider delayDuration={120}>
+      <RadixTooltip.Root>
+        {children ? (
+          <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
+        ) : (
+          <RadixTooltip.Trigger asChild>
+            <span
+              tabIndex={0}
+              className="inline-flex cursor-help items-center text-ink-muted hover:text-accent"
+            >
+              <Info size={12} />
+            </span>
+          </RadixTooltip.Trigger>
+        )}
+        <RadixTooltip.Portal>
+          <RadixTooltip.Content
+            sideOffset={6}
+            className="z-[80] max-w-[240px] rounded-[8px] border-[1.5px] border-ink bg-ink px-3 py-2 text-[11.5px] font-semibold leading-snug text-bg shadow-brutal-accent"
+          >
+            {text}
+            <RadixTooltip.Arrow className="fill-ink" />
+          </RadixTooltip.Content>
+        </RadixTooltip.Portal>
+      </RadixTooltip.Root>
+    </RadixTooltip.Provider>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Radix select                                                        */
+/* ------------------------------------------------------------------ */
+export function SelectField<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+  tip,
+}: {
+  label: string;
+  value: T;
+  onChange: (v: T) => void;
+  options: Array<{ value: T; label: string }>;
+  tip?: string;
+}) {
+  return (
+    <div>
+      <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
+        {label}
+        {tip && <Tip text={tip} />}
+      </span>
+      <RadixSelect.Root value={value} onValueChange={(v) => onChange(v as T)}>
+        <RadixSelect.Trigger className="flex w-full items-center justify-between gap-2 rounded-full border-[1.5px] border-ink bg-surface px-3.5 py-2 text-[12.5px] font-bold text-ink shadow-brutal-sm transition-shadow hover:shadow-brutal data-[state=open]:shadow-brutal">
+          <RadixSelect.Value />
+          <RadixSelect.Icon>
+            <ChevronDown size={14} className="text-ink-dim" />
+          </RadixSelect.Icon>
+        </RadixSelect.Trigger>
+        <RadixSelect.Portal>
+          <RadixSelect.Content
+            position="popper"
+            sideOffset={6}
+            className="z-[85] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[12px] border-[1.5px] border-ink bg-surface shadow-brutal"
+          >
+            <RadixSelect.Viewport className="p-1.5">
+              {options.map((o) => (
+                <RadixSelect.Item
+                  key={o.value}
+                  value={o.value}
+                  className="flex cursor-pointer items-center justify-between gap-3 rounded-full px-3 py-2 text-[12.5px] font-bold text-ink-dim outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-ink data-[state=checked]:text-ink"
+                >
+                  <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
+                  <RadixSelect.ItemIndicator>
+                    <Check size={13} />
+                  </RadixSelect.ItemIndicator>
+                </RadixSelect.Item>
+              ))}
+            </RadixSelect.Viewport>
+          </RadixSelect.Content>
+        </RadixSelect.Portal>
+      </RadixSelect.Root>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Pass / fail chip for scan report                                    */
+/* ------------------------------------------------------------------ */
 export function PassFail({ pass, children }: { pass: boolean; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-bold ${
-        pass ? "bg-moss/15 text-moss" : "bg-rust/15 text-rust"
+      className={`inline-flex w-[52px] shrink-0 items-center justify-center rounded-full border px-1.5 py-[2px] font-mono text-[9px] font-bold uppercase tracking-[0.1em] ${
+        pass ? "border-ok/50 bg-ok/10 text-ok" : "border-danger/50 bg-danger/10 text-danger"
       }`}
     >
-      {pass ? <IconCheck size={9} /> : <IconInfo size={9} />}
       {children}
     </span>
   );

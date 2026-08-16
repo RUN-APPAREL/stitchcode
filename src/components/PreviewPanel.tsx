@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge } from "lucide-react";
 import type { QRMatrix } from "../lib/qr";
 import {
   byteLength,
@@ -10,14 +11,21 @@ import {
   renderSVG,
 } from "../lib/qr";
 import type { StyleState } from "./StylePanel";
-import { IconArrowRight, IconCopy, IconDownload, IconImage, IconAlert } from "./icons";
-import { PassFail, useToast } from "./ui";
+import { IndustrialCard, PassFail, Pill, SpecCell, Tele, useToast } from "./ui";
+
+const SUBSTRATES = [
+  { id: "white", label: "White", cls: "sub-white", color: "#ffffff" },
+  { id: "kraft", label: "Kraft", cls: "sub-kraft", color: "#bd8a52" },
+  { id: "knit", label: "Poly Knit", cls: "sub-knit", color: "#dfe3e7" },
+  { id: "cotton", label: "Woven Cotton", cls: "sub-cotton", color: "#efebe0" },
+  { id: "nylon", label: "Nylon", cls: "sub-nylon", color: "#d3d9e1" },
+] as const;
+type SubstrateId = (typeof SUBSTRATES)[number]["id"];
 
 interface Check {
   label: string;
   detail: string;
   pass: boolean;
-  warn?: boolean;
 }
 
 export function PreviewPanel({
@@ -32,11 +40,19 @@ export function PreviewPanel({
   filenameBase: string;
 }) {
   const toast = useToast();
+  const [substrate, setSubstrate] = useState<SubstrateId>("white");
+  const sub = SUBSTRATES.find((s) => s.id === substrate)!;
   const bytes = byteLength(payload);
 
-  const svg = useMemo(
-    () => (matrix ? renderSVG(matrix, style, 640) : ""),
+  /* transparent-bg render so the code sits ON the substrate */
+  const printed = useMemo(
+    () => (matrix ? renderSVG(matrix, { ...style, bg: "transparent" }, 640) : ""),
     [matrix, style],
+  );
+
+  const subContrast = useMemo(
+    () => (matrix ? contrastRatio(style.fg, sub.color) : 0),
+    [matrix, style.fg, sub.color],
   );
 
   const checks = useMemo<Check[]>(() => {
@@ -53,15 +69,13 @@ export function PreviewPanel({
         pass: style.margin >= 4,
       },
       {
-        label: "Contrast",
-        detail: `${ratio.toFixed(1)} : 1 module-to-background`,
+        label: "Ink / stock contrast",
+        detail: `${ratio.toFixed(1)} : 1 between module and field`,
         pass: ratio >= 4.5,
       },
       {
         label: "Polarity",
-        detail: polarity
-          ? "Dark modules on light field"
-          : "Inverted — many scanners will refuse this",
+        detail: polarity ? "Dark modules on light field" : "Inverted — many scanners refuse this",
         pass: polarity,
       },
     ];
@@ -73,17 +87,12 @@ export function PreviewPanel({
           ? `${Math.round(style.logoScale * 100)}% cover · level H redundancy`
           : style.ec !== "H"
             ? "Needs error correction level H"
-            : "Logo covers a lot of data — shrink it",
+            : "Logo covers too much data — shrink it",
         pass: okLogo,
       });
     }
     if (payload.startsWith("http://")) {
-      list.push({
-        label: "Link protocol",
-        detail: "Plain HTTP — browsers will flag it",
-        pass: false,
-        warn: true,
-      });
+      list.push({ label: "Link protocol", detail: "Plain HTTP — browsers will flag it", pass: false });
     }
     list.push({
       label: "Density",
@@ -91,16 +100,18 @@ export function PreviewPanel({
         matrix.version <= 10
           ? `Version ${matrix.version} — comfortably sparse`
           : matrix.version <= 20
-            ? `Version ${matrix.version} — medium density, keep prints ≥ 3 cm`
-            : `Version ${matrix.version} — very dense, scan tests essential`,
+            ? `Version ${matrix.version} — keep prints ≥ 3 cm`
+            : `Version ${matrix.version} — very dense, test scans essential`,
       pass: matrix.version <= 20,
-      warn: matrix.version > 20,
     });
     return list;
   }, [matrix, style, payload]);
 
   const passed = checks.filter((c) => c.pass).length;
-  const score = checks.length ? Math.round((passed / checks.length) * 100) : 0;
+  const verified = matrix !== null && passed === checks.length && checks.length > 0;
+
+  const modulePx = matrix ? style.exportPx / (matrix.size + style.margin * 2) : 0;
+  const printCm = ((style.exportPx / 300) * 2.54).toFixed(1);
 
   const doPng = async (): Promise<Blob | null> => {
     if (!matrix) return null;
@@ -121,9 +132,7 @@ export function PreviewPanel({
 
   const onDownloadSvg = () => {
     if (!matrix) return;
-    const blob = new Blob([renderSVG(matrix, style, style.exportPx)], {
-      type: "image/svg+xml",
-    });
+    const blob = new Blob([renderSVG(matrix, style, style.exportPx)], { type: "image/svg+xml" });
     downloadBlob(blob, `${filenameBase}.svg`);
     toast("success", "Vector SVG saved — infinite scale for print");
   };
@@ -139,117 +148,158 @@ export function PreviewPanel({
     }
   };
 
-  const printCm = ((style.exportPx / 300) * 2.54).toFixed(1);
-
   return (
-    <section className="card overflow-hidden" id="preview">
-      {/* header strip */}
-      <div className="flex items-center justify-between border-b-[1.5px] border-line-soft bg-ink-700/50 px-5 py-3.5">
-        <div className="flex items-center gap-2.5">
-          <span className="pulse-dot h-2 w-2 rounded-full bg-moss" />
-          <h2 className="font-display text-[15px] font-semibold text-cream">
-            Live proof
-          </h2>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {matrix && (
-            <>
-              <span className="chip font-mono !text-[10.5px]">V{matrix.version}</span>
-              <span className="chip font-mono !text-[10.5px]">
-                {matrix.size}×{matrix.size}
-              </span>
-              <span className="chip font-mono !text-[10.5px]">{bytes} B</span>
-              <span className="chip !border-amber/40 !bg-amber/10 font-mono !text-[10.5px] !text-amber">
-                EC {style.ec}
-              </span>
-            </>
+    <div className="sticky top-[92px] space-y-4">
+      <IndustrialCard id="preview" stripe={verified ? "var(--t-ok)" : "var(--t-accent)"}>
+        {/* header strip */}
+        <div className="flex items-center justify-between gap-2 border-b-[1.5px] border-line bg-surface2/60 px-5 py-3">
+          <div className="flex items-center gap-2">
+            <span className="pulse-dot h-2 w-2 rounded-full bg-ok" />
+            <h2 className="font-display text-[15px] font-black tracking-tight text-ink">Live proof</h2>
+          </div>
+          {verified ? (
+            <Tele tone="ok">✓ scannable payload verified</Tele>
+          ) : (
+            <Tele tone="warn">checking…</Tele>
           )}
         </div>
-      </div>
 
-      {/* QR stage */}
-      <div className="relative flex items-center justify-center bg-[radial-gradient(460px_300px_at_50%_38%,rgba(242,193,78,0.06),transparent_70%)] px-6 pb-2 pt-6">
-        {matrix ? (
-          <div
-            key={`${payload.length}:${payload}:${style.fg}:${style.bg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logo?.length ?? 0}`}
-            className="qr-pop qr-live w-full max-w-[330px] rounded-[18px] p-[10px] shadow-hard-lg"
-            style={{ background: style.bg, border: "1.5px solid var(--color-line-soft)" }}
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
-        ) : (
-          <div className="flex aspect-square w-full max-w-[330px] flex-col items-center justify-center gap-3 rounded-[18px] border-[1.5px] border-dashed border-line bg-ink-850/60 text-center">
-            <IconAlert size={26} className="text-amber" />
-            <p className="px-8 text-[13.5px] font-bold text-cream-dim">
-              {payload
-                ? "Payload exceeds this error-correction level's capacity — shorten it or drop to level L."
-                : "Fill the form and your code materialises here instantly."}
-            </p>
+        {/* telemetry row */}
+        <div className="flex flex-wrap items-center gap-1.5 px-5 pt-4">
+          <Tele tone="accent">ECC level {style.ec}</Tele>
+          {matrix && <Tele>V{matrix.version}</Tele>}
+          {matrix && <Tele>{matrix.size}×{matrix.size} mod</Tele>}
+          <Tele>{bytes} B</Tele>
+          <Tele tone="ok">100% offline</Tele>
+        </div>
+
+        {/* substrate selector */}
+        <div className="px-5 pt-3.5">
+          <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+            <Layers size={12} /> Substrate simulation
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {SUBSTRATES.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSubstrate(s.id)}
+                className={`flex items-center gap-1.5 rounded-full border-[1.5px] py-1 pl-1 pr-2.5 text-[10.5px] font-extrabold transition-all ${
+                  substrate === s.id
+                    ? "border-ink bg-ink text-bg shadow-brutal-accent"
+                    : "border-line bg-surface text-ink-dim hover:border-ink hover:text-ink"
+                }`}
+              >
+                <span className={`h-4 w-4 rounded-full border border-ink/40 ${s.cls}`} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* QR viewport on substrate */}
+        <div className={`relative mx-5 mt-3.5 flex items-center justify-center rounded-[12px] border-[1.5px] border-ink p-6 ${sub.cls}`}>
+          {matrix ? (
+            <div
+              key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logo?.length ?? 0}`}
+              className="qr-pop qr-live w-full max-w-[300px]"
+              dangerouslySetInnerHTML={{ __html: printed }}
+            />
+          ) : (
+            <div className="flex aspect-square w-full max-w-[300px] flex-col items-center justify-center gap-3 rounded-[10px] border-[1.5px] border-dashed border-ink/30 bg-surface/70 text-center backdrop-blur-[1px]">
+              <ScanLine size={28} className="text-accent" />
+              <p className="px-8 text-[13px] font-bold text-ink-dim">
+                {payload
+                  ? "Payload exceeds this error-correction level's capacity — shorten it or drop to level L."
+                  : "Fill the form and your code materialises here instantly."}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 2×2 spec grid */}
+        {matrix && (
+          <div className="grid grid-cols-2 gap-2 px-5 pt-4">
+            <SpecCell
+              label="Target dimension"
+              value={`${style.exportPx}px²`}
+              hint={`${printCm} × ${printCm} cm @ 300 DPI`}
+            />
+            <SpecCell label="Module size" value={`${modulePx.toFixed(1)}px`} hint="per module at target" />
+            <SpecCell
+              label="Substrate contrast"
+              value={`${subContrast.toFixed(1)}:1`}
+              tone={subContrast >= 4.5 ? "ok" : subContrast >= 3 ? "warn" : "danger"}
+              hint={`on ${sub.label.toLowerCase()}`}
+            />
+            <SpecCell
+              label="Quiet zone"
+              value={`${style.margin} mod`}
+              tone={style.margin >= 4 ? "ok" : "danger"}
+              hint={style.margin >= 4 ? "spec ≥ 4 ✓" : "below 4-module min"}
+            />
           </div>
         )}
-      </div>
 
-      {/* scan report */}
-      {matrix && (
-        <div className="mx-5 mb-4 mt-3 rounded-[12px] border-[1.5px] border-line-soft bg-ink-850/70">
-          <div className="flex items-center justify-between border-b-[1.5px] border-line-soft px-4 py-2.5">
-            <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-muted">
-              Scan-safety report
-            </p>
-            <span
-              className={`font-mono text-[12px] font-bold ${
-                score === 100 ? "text-moss" : score >= 60 ? "text-amber" : "text-rust"
-              }`}
-            >
-              {passed}/{checks.length} checks
-            </span>
+        {/* scan-safety report */}
+        {matrix && (
+          <div className="mx-5 mt-4 overflow-hidden rounded-[12px] border-[1.5px] border-line">
+            <div className="flex items-center justify-between border-b-[1.5px] border-line bg-surface2/60 px-4 py-2">
+              <span className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">
+                <Gauge size={12} /> Scan-safety report
+              </span>
+              <span
+                className={`font-mono text-[11.5px] font-bold ${
+                  passed === checks.length ? "text-ok" : passed >= checks.length / 2 ? "text-warn" : "text-danger"
+                }`}
+              >
+                {passed}/{checks.length}
+              </span>
+            </div>
+            <ul className="divide-y divide-line-soft bg-surface">
+              {checks.map((c) => (
+                <li key={c.label} className="flex items-center gap-3 px-4 py-2">
+                  <PassFail pass={c.pass}>{c.pass ? "pass" : "risk"}</PassFail>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-bold text-ink">{c.label}</p>
+                    <p className="truncate text-[11px] font-medium text-ink-muted">{c.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="divide-y divide-line-soft/70">
-            {checks.map((c) => (
-              <li key={c.label} className="flex items-center gap-3 px-4 py-2.5">
-                <PassFail pass={c.pass}>{c.pass ? "pass" : c.warn ? "warn" : "risk"}</PassFail>
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-bold text-cream">{c.label}</p>
-                  <p className="truncate text-[11.5px] font-medium text-muted">{c.detail}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        )}
 
-      {/* export */}
-      <div className="border-t-[1.5px] border-line-soft bg-ink-700/40 p-4">
-        <div className="flex flex-col gap-2.5 sm:flex-row">
-          <button className="btn btn-amber flex-1" onClick={onDownloadPng} disabled={!matrix}>
-            <IconDownload size={15} />
-            Download PNG
-            <span className="arrow-key">
-              <IconArrowRight size={11} />
-            </span>
-          </button>
-          <button className="btn btn-dark flex-1" onClick={onDownloadSvg} disabled={!matrix}>
-            <IconImage size={15} />
-            SVG vector
-          </button>
-          <button
-            className="btn btn-dark"
-            onClick={onCopy}
-            disabled={!matrix}
-            title="Copy PNG to clipboard"
-            aria-label="Copy image to clipboard"
-          >
-            <IconCopy size={15} />
-          </button>
+        {/* export */}
+        <div className="p-5">
+          <div className="flex flex-col gap-2.5 sm:flex-row">
+            <Pill onClick={onDownloadPng} disabled={!matrix} className="flex-1">
+              <Download size={15} /> Download PNG
+            </Pill>
+            <Pill variant="dark" onClick={onDownloadSvg} disabled={!matrix} className="flex-1">
+              <ImageIcon size={15} /> SVG vector
+            </Pill>
+            <Pill
+              variant="ghost"
+              onClick={onCopy}
+              disabled={!matrix}
+              title="Copy PNG to clipboard"
+              className="!px-4"
+            >
+              <Copy size={15} />
+            </Pill>
+          </div>
+          {matrix && (
+            <p className="mt-2.5 flex items-center justify-between text-[10.5px] font-semibold text-ink-muted">
+              <span>
+                PNG → <span className="font-bold text-ink-dim">{printCm} cm</span> @ 300 DPI
+              </span>
+              <span className={Number(printCm) < 2 ? "font-bold text-danger" : ""}>
+                {Number(printCm) < 2 ? "below 2 cm minimum" : "above 2 cm print minimum"}
+              </span>
+            </p>
+          )}
         </div>
-        <p className="mt-2.5 flex items-center justify-between text-[11px] font-medium text-muted">
-          <span>
-            {style.exportPx}px PNG → <span className="font-bold text-cream-dim">{printCm} × {printCm} cm</span> at 300 DPI
-          </span>
-          <span className={Number(printCm) < 2 ? "font-bold text-rust" : ""}>
-            {Number(printCm) < 2 ? "below 2 cm minimum" : "above 2 cm minimum"}
-          </span>
-        </p>
-      </div>
-    </section>
+      </IndustrialCard>
+    </div>
   );
 }

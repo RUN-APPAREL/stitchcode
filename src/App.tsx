@@ -1,558 +1,453 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createMatrix, renderSVG } from "./lib/qr";
+import { motion } from "motion/react";
+import { QrCode, WifiOff, History, Trash2, RotateCcw, ArrowDown, ScanLine } from "lucide-react";
 import {
-  buildPayload,
-  DEFAULT_FORMS,
-  QR_TYPE_META,
-  summarize,
-  validate,
-  type FormState,
-  type QRType,
-} from "./lib/payloads";
-import { ContentForm, PayloadInspector } from "./components/ContentForms";
-import { DEFAULT_STYLE, StylePanel, type StyleState } from "./components/StylePanel";
+  THEMES,
+  applyTheme,
+  getInitialTheme,
+  persistTheme,
+  type ThemeId,
+} from "./lib/themes";
+import type { QRType, FormState } from "./lib/payloads";
+import { DEFAULT_FORMS, buildPayload, summarize } from "./lib/payloads";
+import { createMatrix, renderSVG, type QRMatrix } from "./lib/qr";
+import { ToastProvider, Reveal, Pill, Tele, Tip, useToast } from "./components/ui";
+import { ContentForms } from "./components/ContentForms";
+import { StylePanel, DEFAULT_STYLE, type StyleState } from "./components/StylePanel";
 import { PreviewPanel } from "./components/PreviewPanel";
-import {
-  ChecklistSection,
-  FaqSection,
-  Footer,
-  SpecSection,
-  TickerStrip,
-} from "./components/Sections";
-import {
-  PanelHeading,
-  Reveal,
-  ToastProvider,
-  useDebounced,
-  useLocalStorage,
-  useToast,
-} from "./components/ui";
-import {
-  IconArrowUpRight,
-  IconBolt,
-  IconContact,
-  IconHistory,
-  IconLink,
-  IconMail,
-  IconPhone,
-  IconRefresh,
-  IconShield,
-  IconSms,
-  IconText,
-  IconTrash,
-  IconWifi,
-  IconX,
-  LogoMark,
-} from "./components/icons";
+import { Ticker, Checklist, ECSection, FAQ } from "./components/Sections";
 
 /* ------------------------------------------------------------------ */
-/* History                                                             */
+/* History persistence                                                 */
 /* ------------------------------------------------------------------ */
-
-interface HistoryEntry {
+interface HistoryItem {
   id: string;
   ts: number;
   type: QRType;
-  title: string;
-  payload: string;
   forms: FormState;
   style: StyleState;
-  sig: string;
-}
-
-function uid(): string {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function timeAgo(ts: number): string {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m} min ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} h ago`;
-  return `${Math.floor(h / 24)} d ago`;
-}
-
-function MiniQR({
-  payload,
-  style,
-  px,
-}: {
   payload: string;
-  style: StyleState;
-  px: number;
-}) {
-  const svg = useMemo(() => {
-    try {
-      return renderSVG(createMatrix(payload, style.ec), style, px);
-    } catch {
-      return "";
-    }
-  }, [payload, style, px]);
-  if (!svg) return null;
-  return (
-    <div
-      className="rounded-[10px] p-[6px]"
-      style={{ background: style.bg, border: "1.5px solid var(--color-line-soft)" }}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
+}
+const HISTORY_KEY = "qrsmith:history";
+
+function loadHistory(): HistoryItem[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? (JSON.parse(raw) as HistoryItem[]) : [];
+  } catch {
+    return [];
+  }
 }
 
-/* ------------------------------------------------------------------ */
-/* Type tabs                                                           */
-/* ------------------------------------------------------------------ */
+export default function App() {
+  const [theme, setTheme] = useState<ThemeId>(getInitialTheme);
 
-const TYPE_ICONS: Record<QRType, React.ReactNode> = {
-  url: <IconLink size={15} />,
-  text: <IconText size={15} />,
-  wifi: <IconWifi size={15} />,
-  vcard: <IconContact size={15} />,
-  email: <IconMail size={15} />,
-  sms: <IconSms size={15} />,
-  phone: <IconPhone size={15} />,
-};
-
-function TypeTabs({
-  type,
-  onChange,
-}: {
-  type: QRType;
-  onChange: (t: QRType) => void;
-}) {
-  return (
-    <div className="mb-5 flex flex-wrap gap-2">
-      {(Object.keys(QR_TYPE_META) as QRType[]).map((t) => {
-        const active = t === type;
-        return (
-          <button
-            key={t}
-            onClick={() => onChange(t)}
-            className={`flex items-center gap-2 rounded-[10px] border-[1.5px] px-3.5 py-2.5 text-[13px] font-bold transition-all duration-150 ${
-              active
-                ? "border-ink-950 bg-cream text-ink-950 shadow-hard-sm"
-                : "border-line-soft bg-ink-700 text-cream-dim hover:-translate-y-0.5 hover:border-line hover:text-cream"
-            }`}
-          >
-            {TYPE_ICONS[t]}
-            {QR_TYPE_META[t].short}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* History rail                                                        */
-/* ------------------------------------------------------------------ */
-
-function HistoryRail({
-  history,
-  onRestore,
-  onDelete,
-  onClear,
-}: {
-  history: HistoryEntry[];
-  onRestore: (e: HistoryEntry) => void;
-  onDelete: (id: string) => void;
-  onClear: () => void;
-}) {
-  return (
-    <Reveal className="mt-8">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <IconHistory size={16} className="text-amber" />
-          <h3 className="font-display text-[17px] font-semibold text-cream">
-            Recent codes
-          </h3>
-          <span className="chip font-mono !text-[10.5px]">{history.length}</span>
-        </div>
-        {history.length > 0 && (
-          <button className="btn btn-ghost !px-3 !py-1.5 !text-[12px]" onClick={onClear}>
-            <IconTrash size={13} /> Clear all
-          </button>
-        )}
-      </div>
-
-      {history.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-[12px] border-[1.5px] border-dashed border-line bg-ink-850/50 px-5 py-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] border-[1.5px] border-line bg-ink-700 text-amber">
-            <IconBolt size={15} />
-          </span>
-          <p className="text-[13px] font-medium leading-relaxed text-muted">
-            Everything you forge is bookmarked here automatically — stored in
-            this browser only, never uploaded.
-          </p>
-        </div>
-      ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {history.map((e) => (
-            <div
-              key={e.id}
-              className="card card-hover group w-[218px] shrink-0 p-3.5"
-            >
-              <div className="mb-3 flex justify-center rounded-[10px] bg-ink-850/70 p-2.5">
-                <MiniQR payload={e.payload} style={e.style} px={140} />
-              </div>
-              <p className="truncate text-[12.5px] font-bold text-cream" title={e.title}>
-                {e.title}
-              </p>
-              <p className="mt-0.5 text-[11px] font-medium text-muted">
-                {QR_TYPE_META[e.type].short} · {timeAgo(e.ts)}
-              </p>
-              <div className="mt-3 flex gap-1.5">
-                <button
-                  className="btn btn-primary flex-1 !px-2 !py-1.5 !text-[12px]"
-                  onClick={() => onRestore(e)}
-                >
-                  <IconRefresh size={12} /> Restore
-                </button>
-                <button
-                  className="btn btn-ghost !p-2 !text-muted hover:!text-rust"
-                  onClick={() => onDelete(e.id)}
-                  aria-label="Delete entry"
-                  title="Delete"
-                >
-                  <IconX size={13} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Reveal>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* App                                                                 */
-/* ------------------------------------------------------------------ */
-
-function Studio() {
-  const toast = useToast();
-  const [qrType, setQrType] = useState<QRType>("url");
-  const [forms, setForms] = useState<FormState>(DEFAULT_FORMS);
-  const [style, setStyle] = useState<StyleState>(DEFAULT_STYLE);
-  const [history, setHistory] = useLocalStorage<HistoryEntry[]>(
-    "qrsmith.history.v1",
-    [],
-  );
-
-  const issues = useMemo(() => validate(qrType, forms), [qrType, forms]);
-  const payload = issues.length === 0 ? buildPayload(qrType, forms) : "";
-  const matrix = useMemo(() => {
-    if (!payload) return null;
-    try {
-      return createMatrix(payload, style.ec);
-    } catch {
-      return null;
-    }
-  }, [payload, style.ec]);
-
-  /* autosave snapshots — debounced so typing settles first */
-  const sig = payload ? JSON.stringify([qrType, payload, style]) : "";
-  const settledSig = useDebounced(sig, 900);
-  const mounted = useRef(false);
-  useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
-    if (!settledSig) return;
-    setHistory((h) => {
-      if (h[0]?.sig === settledSig) return h;
-      const entry: HistoryEntry = {
-        id: uid(),
-        ts: Date.now(),
-        type: qrType,
-        title: summarize(qrType, forms),
-        payload,
-        forms,
-        style,
-        sig: settledSig,
-      };
-      return [entry, ...h.filter((e) => e.sig !== settledSig)].slice(0, 18);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settledSig]);
-
-  const restore = (e: HistoryEntry) => {
-    setQrType(e.type);
-    setForms(e.forms);
-    setStyle({ ...DEFAULT_STYLE, ...e.style });
-    document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" });
-    toast("info", `Restored “${e.title}”`);
+  const switchTheme = (id: ThemeId) => {
+    setTheme(id);
+    applyTheme(id);
+    persistTheme(id);
   };
 
-  const filenameBase = `qrsmith-${qrType}-v${matrix?.version ?? "x"}`;
-
   return (
-    <section id="studio" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-16 sm:px-8">
-      <Reveal className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-amber">
-            The studio
-          </p>
-          <h2 className="font-display text-3xl font-semibold leading-tight text-cream sm:text-[38px]">
-            Pick a payload.
-            <br />
-            The proof updates live.
-          </h2>
-        </div>
-        <p className="max-w-sm text-[14px] leading-relaxed text-muted">
-          Seven encoders, one spec-safe pipeline. Every change re-encodes the
-          matrix and re-runs the scan-safety checks in the same breath.
-        </p>
-      </Reveal>
+    <ToastProvider>
+      <div className="relative min-h-screen bg-bg text-ink">
+        {/* ambient layers */}
+        <div className="bg-blueprint pointer-events-none fixed inset-0 z-0" aria-hidden />
+        <div className="bg-noise pointer-events-none fixed inset-0 z-0 opacity-60" aria-hidden />
+        <div
+          className="pointer-events-none fixed -top-40 left-1/2 z-0 h-[560px] w-[900px] -translate-x-1/2 rounded-full opacity-[0.16] blur-[110px]"
+          style={{ background: "var(--t-accent)" }}
+          aria-hidden
+        />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_404px]">
-        {/* left column */}
-        <div className="space-y-5">
-          <Reveal className="card p-5">
-            <PanelHeading
-              kicker="01 · Payload"
-              title={QR_TYPE_META[qrType].label}
-              right={
-                <span className="chip font-mono !text-[10.5px]">
-                  {issues.length === 0 ? "valid" : "drafting"}
-                </span>
-              }
-            />
-            <TypeTabs type={qrType} onChange={setQrType} />
-            <ContentForm type={qrType} forms={forms} setForms={setForms} />
-            <PayloadInspector type={qrType} forms={forms} />
-          </Reveal>
-
-          <Reveal delay={80}>
-            <StylePanel style={style} setStyle={setStyle} />
-          </Reveal>
-        </div>
-
-        {/* right column */}
-        <div className="lg:sticky lg:top-24 lg:self-start">
-          <Reveal delay={120}>
-            <PreviewPanel
-              payload={payload}
-              matrix={matrix}
-              style={style}
-              filenameBase={filenameBase}
-            />
-          </Reveal>
+        <div className="relative z-10">
+          <Header theme={theme} onTheme={switchTheme} />
+          <Opener />
+          <Ticker />
+          <Workbench />
+          <Checklist />
+          <ECSection />
+          <FAQ />
+          <Footer />
         </div>
       </div>
-
-      <HistoryRail
-        history={history}
-        onRestore={restore}
-        onDelete={(id) => setHistory((h) => h.filter((e) => e.id !== id))}
-        onClear={() => {
-          setHistory([]);
-          toast("info", "History cleared");
-        }}
-      />
-    </section>
+    </ToastProvider>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Hero                                                                */
+/* Header with quick-theme selector                                    */
 /* ------------------------------------------------------------------ */
-
-function Hero() {
-  const heroStyle: StyleState = { ...DEFAULT_STYLE, ec: "M" };
+function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => void }) {
   return (
-    <header className="relative mx-auto max-w-6xl px-5 pb-16 pt-14 sm:px-8 sm:pt-20">
-      <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
-        <div>
-          <Reveal className="mb-6 flex flex-wrap items-center gap-2">
-            <span className="chip !border-amber/50 !bg-amber/10 !text-amber">
-              <IconBolt size={11} /> QR STUDIO
-            </span>
-            <span className="chip">
-              <IconShield size={11} /> runs entirely in your browser
-            </span>
-          </Reveal>
-
-          <Reveal delay={80}>
-            <h1 className="font-display text-[44px] font-semibold leading-[1.02] tracking-[-0.01em] text-cream sm:text-[64px]">
-              Forge QR codes
-              <br />
-              that{" "}
-              <span className="relative inline-block">
-                scan
-                <svg
-                  className="absolute -bottom-2 left-0 w-full"
-                  viewBox="0 0 220 14"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M4 10.5C60 3.5 150 2.5 216 7.5"
-                    stroke="var(--color-amber)"
-                    strokeWidth="5.5"
-                    strokeLinecap="round"
-                    className="draw-underline"
-                  />
-                </svg>
-              </span>{" "}
-              on the
-              <br />
-              first try.
-            </h1>
-          </Reveal>
-
-          <Reveal delay={160}>
-            <p className="mt-7 max-w-lg text-[15.5px] leading-relaxed text-muted">
-              A local-first workbench for spec-safe codes: seven payload types,
-              logo embedding with automatic level-H protection, live WCAG
-              contrast and quiet-zone checks, and vector-perfect SVG exports —
-              nothing ever leaves your machine.
-            </p>
-          </Reveal>
-
-          <Reveal delay={240} className="mt-8 flex flex-wrap items-center gap-3">
-            <a href="#studio" className="btn btn-primary">
-              Open the studio
-              <span className="arrow-key">
-                <IconArrowUpRight size={11} />
-              </span>
-            </a>
-            <a href="#checklist" className="btn btn-dark">
-              Read the field manual
-            </a>
-          </Reveal>
-
-          <Reveal delay={320} className="mt-9 flex flex-wrap items-center gap-x-7 gap-y-3">
-            {[
-              ["7", "payload types"],
-              ["ISO", "18004 : 2015"],
-              ["0", "bytes uploaded"],
-            ].map(([n, l]) => (
-              <div key={l} className="flex items-baseline gap-2.5">
-                <span className="font-display text-[26px] font-semibold text-amber">
-                  {n}
-                </span>
-                <span className="text-[12px] font-bold uppercase tracking-[0.08em] text-muted">
-                  {l}
-                </span>
-              </div>
-            ))}
-          </Reveal>
-        </div>
-
-        {/* specimen card */}
-        <Reveal delay={200} className="relative hidden lg:block">
-          <div
-            className="absolute -right-3 top-8 h-64 w-64 rotate-6 rounded-[20px] border-[1.5px] border-ink-950 bg-amber shadow-hard-lg"
-            aria-hidden="true"
-          />
-          <div
-            className="absolute -left-6 bottom-2 h-24 w-24 -rotate-12 rounded-[16px] border-[1.5px] border-line bg-ink-700 shadow-hard"
-            aria-hidden="true"
-          />
-          <div className="relative mx-auto w-[340px] -rotate-2">
-            <div
-              className="float-slow rounded-[22px] border-[1.5px] border-ink-950 bg-cream p-4 shadow-hard-lg"
-              style={{ ["--tilt" as string]: "0deg" }}
-            >
-              <MiniQR
-                payload="https://qrsmith.studio/hello"
-                style={heroStyle}
-                px={300}
-              />
-              <div className="mt-3 flex items-center justify-between px-1">
-                <p className="text-[12px] font-bold text-ink-950">
-                  qrsmith.studio/hello
-                </p>
-                <span className="rounded-full border-[1.5px] border-ink-950 px-2 py-0.5 font-mono text-[10px] font-bold text-ink-950">
-                  V2 · 25×25
-                </span>
-              </div>
-            </div>
-            <div className="absolute -right-9 top-10 rotate-3 rounded-[10px] border-[1.5px] border-ink-950 bg-ink-950 px-3.5 py-2 shadow-hard">
-              <p className="flex items-center gap-2 text-[12px] font-bold text-amber">
-                <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-amber" />
-                decodes in &lt; 0.1 s
-              </p>
-            </div>
-            <div className="absolute -left-12 bottom-16 -rotate-6 rounded-[10px] border-[1.5px] border-line bg-ink-700 px-3.5 py-2 shadow-hard">
-              <p className="text-[12px] font-bold text-cream-dim">quiet zone: 4 mod ✓</p>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </header>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Shell                                                               */
-/* ------------------------------------------------------------------ */
-
-function Nav() {
-  return (
-    <nav className="sticky top-0 z-40 border-b-[1.5px] border-line-soft bg-ink-900/85 backdrop-blur-md">
-      <div className="mx-auto flex h-[64px] max-w-6xl items-center justify-between px-5 sm:px-8">
-        <a href="#top" className="flex items-center gap-3">
-          <LogoMark size={30} />
-          <span className="font-display text-[18px] font-semibold tracking-tight text-cream">
-            QRsmith
+    <header className="sticky top-0 z-50 border-b-[1.5px] border-ink bg-bg/85 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3 sm:px-8">
+        <a href="#top" className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border-[1.5px] border-ink bg-ink text-bg shadow-brutal-accent">
+            <QrCode size={19} />
           </span>
-          <span className="ml-1 hidden rounded-full border-[1.5px] border-line px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted sm:inline">
-            QR studio
+          <span className="leading-none">
+            <span className="block font-display text-[17px] font-black tracking-tight">QRsmith</span>
+            <span className="block font-mono text-[8.5px] font-bold uppercase tracking-[0.28em] text-ink-muted">
+              code studio
+            </span>
           </span>
         </a>
-        <div className="hidden items-center gap-7 md:flex">
+
+        <nav className="hidden items-center gap-5 md:flex">
           {[
             ["Studio", "#studio"],
-            ["Checklist", "#checklist"],
+            ["Field manual", "#checklist"],
             ["Specs", "#specs"],
             ["FAQ", "#faq"],
           ].map(([label, href]) => (
             <a
               key={href}
               href={href}
-              className="text-[13px] font-bold text-muted transition-colors hover:text-cream"
+              className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-ink-dim transition-colors hover:text-accent"
             >
               {label}
             </a>
           ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <Tele tone="ok" className="hidden sm:inline-flex">
+            <WifiOff size={11} /> 100% offline
+          </Tele>
+          <div className="flex items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-surface p-1 shadow-brutal-sm">
+            {THEMES.map((t) => (
+              <Tip key={t.id} text={`${t.name} · ${t.tag}`}>
+                <motion.button
+                  aria-label={`Switch to ${t.name} theme`}
+                  onClick={() => onTheme(t.id)}
+                  whileHover={{ scale: 1.12 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 24 }}
+                  className={`relative h-6 w-6 overflow-hidden rounded-full border-[1.5px] ${
+                    theme === t.id ? "border-ink ring-2 ring-accent ring-offset-1 ring-offset-bg" : "border-ink/40"
+                  }`}
+                  style={{
+                    background: `linear-gradient(135deg, ${t.bg} 0 50%, ${t.accent} 50% 100%)`,
+                  }}
+                >
+                  {theme === t.id && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.ink }} />
+                    </span>
+                  )}
+                </motion.button>
+              </Tip>
+            ))}
+          </div>
         </div>
-        <a href="#studio" className="btn btn-primary !px-4 !py-2.5 !text-[13px]">
-          Start forging
-        </a>
       </div>
-    </nav>
+    </header>
   );
 }
 
-export default function App() {
-  return (
-    <ToastProvider>
-      <div id="top" className="bg-stage relative min-h-screen overflow-x-clip">
-        <div className="bg-gridlines pointer-events-none absolute inset-x-0 top-0 h-[850px]" aria-hidden="true" />
-        <div
-          className="pointer-events-none absolute -left-24 top-[46%] hidden opacity-[0.045] xl:block"
-          aria-hidden="true"
-        >
-          <MiniQR payload="QRsmith ambient watermark 2026" style={DEFAULT_STYLE} px={340} />
-        </div>
+/* ------------------------------------------------------------------ */
+/* Opener — characteristic of the subject                              */
+/* ------------------------------------------------------------------ */
+function Opener() {
+  const sample = useMemo(() => {
+    const m = createMatrix("https://qrsmith.studio/spec/18004", "Q");
+    return renderSVG(m, { ...DEFAULT_STYLE, bg: "transparent" }, 420);
+  }, []);
 
-        <div className="relative">
-          <Nav />
-          <Hero />
-          <TickerStrip />
-          <Studio />
-          <ChecklistSection />
-          <SpecSection />
-          <FaqSection />
-          <Footer />
+  return (
+    <section id="top" className="relative overflow-hidden">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:pt-20">
+        <Reveal>
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <Tele tone="accent">QR code studio</Tele>
+            <Tele>ISO/IEC 18004</Tele>
+            <Tele tone="ok">zero egress</Tele>
+          </div>
+          <h1 className="font-display text-[clamp(42px,7vw,84px)] font-black leading-[0.95] tracking-[-0.025em] text-ink">
+            Codes that scan
+            <br />
+            <span className="relative inline-block">
+              <span className="relative z-10">first try,</span>
+              <motion.span
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: 0.45, type: "spring", stiffness: 120, damping: 20 }}
+                className="absolute inset-x-0 bottom-[0.08em] z-0 h-[0.28em] origin-left bg-accent"
+                style={{ transform: "skewX(-8deg)" }}
+              />
+            </span>
+            <br />
+            every time.
+          </h1>
+          <p className="mt-6 max-w-[440px] text-[15px] font-semibold leading-relaxed text-ink-dim">
+            QRsmith encodes, styles and proofs your QR codes entirely in-browser — with a live
+            scan-safety report that enforces quiet zones, contrast and error correction before
+            anything hits the press.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3.5">
+            <Pill onClick={() => document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" })}>
+              Open the studio <ArrowDown size={14} />
+            </Pill>
+            <Pill
+              variant="ghost"
+              onClick={() => document.getElementById("checklist")?.scrollIntoView({ behavior: "smooth" })}
+            >
+              <ScanLine size={14} /> Field manual
+            </Pill>
+          </div>
+          <div className="mt-10 grid max-w-[440px] grid-cols-3 gap-3">
+            {[
+              ["7", "payload types"],
+              ["5", "substrate proofs"],
+              ["0", "bytes sent out"],
+            ].map(([n, l]) => (
+              <div key={l} className="rounded-[12px] border-[1.5px] border-ink bg-surface px-4 py-3 shadow-brutal-sm">
+                <span className="block font-display text-[26px] font-black leading-none text-accent2">{n}</span>
+                <span className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                  {l}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        {/* floating specimen */}
+        <Reveal className="relative hidden justify-center lg:flex">
+          <motion.div
+            initial={{ opacity: 0, y: 30, rotate: -8 }}
+            animate={{ opacity: 1, y: 0, rotate: -4 }}
+            transition={{ type: "spring", stiffness: 90, damping: 16 }}
+            className="animate-floaty relative w-[330px]"
+            style={{ ["--fl-rot" as string]: "-4deg" }}
+          >
+            <div className="absolute -left-8 top-10 h-full w-full rounded-[16px] border-[1.5px] border-ink bg-accent2" />
+            <div className="relative overflow-hidden rounded-[16px] border-[1.5px] border-ink bg-white p-7 shadow-brutal">
+              <div className="mb-4 flex items-center justify-between">
+                <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                  specimen · v7 · EC Q
+                </span>
+                <span className="h-2.5 w-2.5 rotate-45 bg-accent" />
+              </div>
+              <div className="qr-live" dangerouslySetInnerHTML={{ __html: sample }} />
+              <div className="mt-4 flex items-center justify-between border-t border-dashed border-neutral-200 pt-3">
+                <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                  quiet zone · 4 mod
+                </span>
+                <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+                  21:1 contrast
+                </span>
+              </div>
+            </div>
+            <div className="absolute -right-6 -top-5 rotate-6 rounded-full border-[1.5px] border-ink bg-accent px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-accent-ink shadow-brutal-sm">
+              scans ✓
+            </div>
+          </motion.div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Workbench + history                                                 */
+/* ------------------------------------------------------------------ */
+function Workbench() {
+  const toast = useToast();
+  const [type, setType] = useState<QRType>("url");
+  const [forms, setForms] = useState<FormState>(DEFAULT_FORMS);
+  const [style, setStyle] = useState<StyleState>(DEFAULT_STYLE);
+  const [history, setHistory] = useState<HistoryItem[]>(loadHistory);
+  const saveTimer = useRef<number | null>(null);
+
+  const payload = useMemo(() => buildPayload(type, forms), [type, forms]);
+
+  const matrix: QRMatrix | null = useMemo(() => {
+    if (!payload) return null;
+    try {
+      return createMatrix(payload, style.ec);
+    } catch {
+      return null; // payload over capacity for this EC level
+    }
+  }, [payload, style.ec]);
+
+  /* autosave history (debounced) */
+  useEffect(() => {
+    if (!payload || !matrix) return;
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      setHistory((h) => {
+        const sig = JSON.stringify({ p: payload, s: { ...style, logo: style.logo ? "1" : "0" } });
+        if (h[0] && JSON.stringify({ p: h[0].payload, s: { ...h[0].style, logo: h[0].style.logo ? "1" : "0" } }) === sig)
+          return h;
+        const item: HistoryItem = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          ts: Date.now(),
+          type,
+          forms,
+          style,
+          payload,
+        };
+        const next = [item, ...h].slice(0, 8);
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        } catch {
+          /* storage full — skip */
+        }
+        return next;
+      });
+    }, 600);
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [payload, matrix, type, forms, style]);
+
+  const restore = (item: HistoryItem) => {
+    setType(item.type);
+    setForms(item.forms);
+    setStyle(item.style);
+    toast("success", "Build restored from history");
+    document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const removeItem = (id: string) => {
+    setHistory((h) => {
+      const next = h.filter((x) => x.id !== id);
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const clearAll = () => {
+    setHistory([]);
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch {
+      /* ignore */
+    }
+    toast("info", "History cleared");
+  };
+
+  const filenameBase = `qrsmith-${type}-${summarize(type, forms).toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24) || "code"}`;
+
+  return (
+    <section id="studio" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-16 sm:px-8">
+      <Reveal className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <Tele tone="accent" className="mb-3">the workbench</Tele>
+          <h2 className="font-display text-[clamp(26px,3.6vw,40px)] font-black leading-[1.02] tracking-tight text-ink">
+            Compose, style, proof.
+          </h2>
+        </div>
+        <p className="max-w-[300px] text-[13px] font-semibold leading-relaxed text-ink-dim">
+          Everything you change re-encodes in real time. The proof panel re-runs every safety check on each keystroke.
+        </p>
+      </Reveal>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <Reveal className="space-y-6">
+          <ContentForms type={type} setType={setType} forms={forms} patch={setForms} payload={payload} />
+          <StylePanel style={style} setStyle={setStyle} />
+        </Reveal>
+        <Reveal>
+          <PreviewPanel payload={payload} matrix={matrix} style={style} filenameBase={filenameBase} />
+        </Reveal>
+      </div>
+
+      {/* history */}
+      {history.length > 0 && (
+        <Reveal className="mt-10">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 font-display text-[17px] font-black tracking-tight text-ink">
+              <History size={16} className="text-accent" /> Recent builds
+              <span className="rounded-full border border-line bg-surface2 px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim">
+                {history.length}
+              </span>
+            </h3>
+            <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={clearAll}>
+              <Trash2 size={12} /> Clear all
+            </Pill>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {history.map((item) => {
+              let thumb = "";
+              try {
+                const m = createMatrix(item.payload, item.style.ec);
+                thumb = renderSVG(m, { ...item.style, margin: 2 }, 96);
+              } catch {
+                thumb = "";
+              }
+              return (
+                <div
+                  key={item.id}
+                  className="group relative w-[124px] shrink-0 overflow-hidden rounded-[12px] border-[1.5px] border-ink bg-surface shadow-brutal-sm transition-transform hover:-translate-y-1"
+                >
+                  <button
+                    onClick={() => restore(item)}
+                    title="Restore this build"
+                    className="block w-full p-2.5 text-left"
+                    style={{ background: item.style.bg }}
+                  >
+                    <div className="qr-live" dangerouslySetInnerHTML={{ __html: thumb }} />
+                  </button>
+                  <div className="flex items-center justify-between border-t-[1.5px] border-line bg-surface2/70 px-2.5 py-1.5">
+                    <span className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ink-dim">
+                      {item.type} · v
+                    </span>
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      aria-label="Delete from history"
+                      className="text-ink-muted transition-colors hover:text-danger"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                  <span className="pointer-events-none absolute inset-x-0 bottom-8 flex justify-center opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 font-mono text-[8.5px] font-bold uppercase text-bg">
+                      <RotateCcw size={9} /> restore
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Reveal>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Footer                                                              */
+/* ------------------------------------------------------------------ */
+function Footer() {
+  return (
+    <footer className="border-t-[1.5px] border-ink bg-ink text-bg">
+      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-5 py-10 sm:px-8 md:flex-row md:items-center">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[8px] border-[1.5px] border-bg/40 bg-bg text-ink">
+            <QrCode size={16} />
+          </span>
+          <div>
+            <span className="block font-display text-[15px] font-black tracking-tight">QRsmith</span>
+            <span className="block font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-bg/50">
+              built local-first
+            </span>
+          </div>
+        </div>
+        <p className="max-w-[380px] font-mono text-[10.5px] font-medium uppercase leading-relaxed tracking-[0.1em] text-bg/60">
+          Encoding runs in your browser · nothing leaves the device ·
+          <span className="text-accent"> ISO/IEC 18004</span> module layout
+        </p>
+        <div className="flex gap-2">
+          <Tele tone="ok">✓ no trackers</Tele>
+          <Tele tone="ok">✓ no cloud</Tele>
         </div>
       </div>
-    </ToastProvider>
+    </footer>
   );
 }
