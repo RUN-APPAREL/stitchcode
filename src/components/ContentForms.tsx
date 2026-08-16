@@ -8,11 +8,9 @@ import {
   MessageSquare,
   Phone,
   ShieldCheck,
-  Terminal,
 } from "lucide-react";
 import type { QRType, FormState } from "../lib/payloads";
 import { QR_TYPE_META } from "../lib/payloads";
-import { byteLength } from "../lib/qr";
 import { IndustrialCard, Tele, Tip } from "./ui";
 
 const TYPE_ICONS: Record<QRType, typeof LinkIcon> = {
@@ -32,28 +30,24 @@ export function ContentForms({
   setType,
   forms,
   patch,
-  payload,
 }: {
   type: QRType;
   setType: (t: QRType) => void;
   forms: FormState;
   patch: (fn: (f: FormState) => FormState) => void;
-  payload: string;
 }) {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     patch((f) => ({ ...f, [key]: value }));
-
-  const bytes = byteLength(payload);
 
   return (
     <IndustrialCard id="content" stripe="var(--t-accent2)">
       <div className="p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-display text-[17px] font-black tracking-tight text-ink">
-            01 · Payload
+            01 · What it holds
           </h2>
           <Tele tone="ok">
-            <ShieldCheck size={11} /> spec-safe encoders
+            <ShieldCheck size={11} /> checked as you type
           </Tele>
         </div>
 
@@ -241,22 +235,6 @@ export function ContentForms({
             )}
           </div>
         </Tabs.Root>
-      </div>
-
-      {/* raw payload inspector */}
-      <div className="border-t-[1.5px] border-line bg-ink text-bg">
-        <div className="flex items-center justify-between px-5 py-2">
-          <span className="flex items-center gap-1.5 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-bg/60">
-            <Terminal size={11} /> encoded payload
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold text-bg/70">{bytes} B</span>
-            {bytes > 300 && <Tele tone="warn">dense</Tele>}
-          </span>
-        </div>
-        <p className="max-h-[74px] overflow-auto break-all px-5 pb-4 font-mono text-[11.5px] leading-relaxed text-accent">
-          {payload || <span className="text-bg/40">— nothing to encode yet —</span>}
-        </p>
       </div>
     </IndustrialCard>
   );

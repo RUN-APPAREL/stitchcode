@@ -119,7 +119,7 @@ export function StylePanel({
         {/* module geometry */}
         <div className="mt-5 space-y-3.5">
           <div>
-            <span className="mb-1.5 block text-[12px] font-bold text-ink-dim">Data modules</span>
+            <span className="mb-1.5 block text-[12px] font-bold text-ink-dim">Dot shape</span>
             <Seg<DotStyle>
               value={style.dotStyle}
               onChange={(v) => patch({ dotStyle: v })}
@@ -132,8 +132,8 @@ export function StylePanel({
           </div>
           <div>
             <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
-              Finder eyes
-              <Tip text="The three corner squares scanners lock onto first. Squared eyes read fastest; rounding is cosmetic only." />
+              Corner squares
+              <Tip text="The three big squares cameras lock onto first. Square reads fastest — rounding is purely a style choice." />
             </span>
             <Seg<CornerStyle>
               value={style.cornerStyle}
@@ -158,25 +158,25 @@ export function StylePanel({
               label: `Level ${k} — ${EC_INFO[k].label} · ${EC_INFO[k].recovery}`,
             }))}
           />
-          <p className="mt-1.5 font-mono text-[10.5px] font-medium text-ink-muted">
-            {EC_INFO[style.ec].capacity} · recovers {EC_INFO[style.ec].recovery}
+          <p className="mt-1.5 text-[11px] font-semibold text-ink-muted">
+            Holds {EC_INFO[style.ec].capacity.toLowerCase()} · survives {EC_INFO[style.ec].recovery.toLowerCase()}
           </p>
         </div>
 
         {/* quiet zone */}
         <div className="mt-5">
           <SliderRow
-            label="Quiet zone"
-            tip="The clear margin around the code. ISO/IEC 18004 specifies a minimum of 4 modules — never print into it."
+            label="Clear margin"
+            tip="The blank border around the code. The standard asks for at least 4 squares — never let artwork or edges print into it."
             value={style.margin}
             min={0}
             max={10}
             onChange={(v) => patch({ margin: v })}
-            format={(v) => `${v} mod`}
+            format={(v) => `${v} squares`}
           />
           {style.margin < 4 && (
             <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-warn">
-              <AlertTriangle size={12} /> Below the 4-module spec minimum
+              <AlertTriangle size={12} /> Below the safe minimum of 4
             </p>
           )}
         </div>

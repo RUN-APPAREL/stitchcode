@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge } from "lucide-react";
 import type { QRMatrix } from "../lib/qr";
 import {
-  byteLength,
   canvasToBlob,
   contrastRatio,
   downloadBlob,
@@ -42,7 +41,6 @@ export function PreviewPanel({
   const toast = useToast();
   const [substrate, setSubstrate] = useState<SubstrateId>("white");
   const sub = SUBSTRATES.find((s) => s.id === substrate)!;
-  const bytes = byteLength(payload);
 
   /* transparent-bg render so the code sits ON the substrate */
   const printed = useMemo(
@@ -61,47 +59,52 @@ export function PreviewPanel({
     const polarity = luminance(style.fg) < luminance(style.bg);
     const list: Check[] = [
       {
-        label: "Quiet zone",
+        label: "Clear margin",
         detail:
           style.margin >= 4
-            ? `${style.margin} modules of clear margin`
-            : `${style.margin} modules — spec needs ≥ 4`,
+            ? "Enough blank space around the code"
+            : "Too little blank space — cameras may miss the code",
         pass: style.margin >= 4,
       },
       {
-        label: "Ink / stock contrast",
-        detail: `${ratio.toFixed(1)} : 1 between module and field`,
+        label: "Contrast",
+        detail:
+          ratio >= 4.5
+            ? "Strong difference between code and background"
+            : "Too low — darken the code or lighten the background",
         pass: ratio >= 4.5,
       },
       {
-        label: "Polarity",
-        detail: polarity ? "Dark modules on light field" : "Inverted — many scanners refuse this",
+        label: "Orientation",
+        detail: polarity
+          ? "Dark on light — the way cameras expect it"
+          : "Light on dark — most phone cameras struggle with this",
         pass: polarity,
       },
     ];
     if (style.logo) {
       const okLogo = style.ec === "H" && style.logoScale <= 0.26;
       list.push({
-        label: "Logo embed",
+        label: "Logo",
         detail: okLogo
-          ? `${Math.round(style.logoScale * 100)}% cover · level H redundancy`
+          ? "Small, centred, and backed by high error correction"
           : style.ec !== "H"
-            ? "Needs error correction level H"
-            : "Logo covers too much data — shrink it",
+            ? "Switch error correction to High first"
+            : "It covers too much of the code — shrink it",
         pass: okLogo,
       });
     }
     if (payload.startsWith("http://")) {
-      list.push({ label: "Link protocol", detail: "Plain HTTP — browsers will flag it", pass: false });
+      list.push({ label: "Link safety", detail: "Plain HTTP — browsers will warn people", pass: false });
     }
     list.push({
       label: "Density",
       detail:
         matrix.version <= 10
-          ? `Version ${matrix.version} — comfortably sparse`
+          ? "Nice and sparse — scans quickly, even small"
           : matrix.version <= 20
-            ? `Version ${matrix.version} — keep prints ≥ 3 cm`
-            : `Version ${matrix.version} — very dense, test scans essential`,
+            ? "Medium density — keep printed copies 3 cm or larger"
+            : "Very dense — large prints only, and test before you commit",
       pass: matrix.version <= 20,
     });
     return list;
@@ -157,24 +160,12 @@ export function PreviewPanel({
             <span className="pulse-dot h-2 w-2 rounded-full bg-ok" />
             <h2 className="font-display text-[15px] font-black tracking-tight text-ink">Live proof</h2>
           </div>
-          {verified ? (
-            <Tele tone="ok">✓ scannable payload verified</Tele>
-          ) : (
-            <Tele tone="warn">checking…</Tele>
-          )}
-        </div>
-
-        {/* telemetry row */}
-        <div className="flex flex-wrap items-center gap-1.5 px-5 pt-4">
-          <Tele tone="accent">ECC level {style.ec}</Tele>
-          {matrix && <Tele>V{matrix.version}</Tele>}
-          {matrix && <Tele>{matrix.size}×{matrix.size} mod</Tele>}
-          <Tele>{bytes} B</Tele>
-          <Tele tone="ok">100% offline</Tele>
+          {matrix && verified && <Tele tone="ok">✓ ready to scan</Tele>}
+          {matrix && !verified && <Tele tone="warn">needs attention</Tele>}
         </div>
 
         {/* substrate selector */}
-        <div className="px-5 pt-3.5">
+        <div className="px-5 pt-4">
           <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
             <Layers size={12} /> Substrate simulation
           </span>
@@ -209,8 +200,8 @@ export function PreviewPanel({
               <ScanLine size={28} className="text-accent" />
               <p className="px-8 text-[13px] font-bold text-ink-dim">
                 {payload
-                  ? "Payload exceeds this error-correction level's capacity — shorten it or drop to level L."
-                  : "Fill the form and your code materialises here instantly."}
+                  ? "This content is too long for the chosen error-correction level — shorten it, or pick a lower level under Style."
+                  : "Fill in the form and your code appears here instantly."}
               </p>
             </div>
           )}
@@ -220,22 +211,22 @@ export function PreviewPanel({
         {matrix && (
           <div className="grid grid-cols-2 gap-2 px-5 pt-4">
             <SpecCell
-              label="Target dimension"
-              value={`${style.exportPx}px²`}
-              hint={`${printCm} × ${printCm} cm @ 300 DPI`}
+              label="Export size"
+              value={`${style.exportPx} px`}
+              hint={`prints ${printCm} × ${printCm} cm at 300 DPI`}
             />
-            <SpecCell label="Module size" value={`${modulePx.toFixed(1)}px`} hint="per module at target" />
+            <SpecCell label="Square size" value={`${modulePx.toFixed(1)} px`} hint="each dot at export size" />
             <SpecCell
-              label="Substrate contrast"
+              label="Surface contrast"
               value={`${subContrast.toFixed(1)}:1`}
               tone={subContrast >= 4.5 ? "ok" : subContrast >= 3 ? "warn" : "danger"}
               hint={`on ${sub.label.toLowerCase()}`}
             />
             <SpecCell
-              label="Quiet zone"
-              value={`${style.margin} mod`}
+              label="Clear margin"
+              value={`${style.margin}×`}
               tone={style.margin >= 4 ? "ok" : "danger"}
-              hint={style.margin >= 4 ? "spec ≥ 4 ✓" : "below 4-module min"}
+              hint={style.margin >= 4 ? "safe margin ✓" : "too little margin"}
             />
           </div>
         )}
@@ -245,7 +236,7 @@ export function PreviewPanel({
           <div className="mx-5 mt-4 overflow-hidden rounded-[12px] border-[1.5px] border-line">
             <div className="flex items-center justify-between border-b-[1.5px] border-line bg-surface2/60 px-4 py-2">
               <span className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-ink-muted">
-                <Gauge size={12} /> Scan-safety report
+                <Gauge size={12} /> Scan checks
               </span>
               <span
                 className={`font-mono text-[11.5px] font-bold ${

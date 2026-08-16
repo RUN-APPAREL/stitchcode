@@ -15,7 +15,7 @@ import { ToastProvider, Reveal, Pill, Tele, Tip, useToast } from "./components/u
 import { ContentForms } from "./components/ContentForms";
 import { StylePanel, DEFAULT_STYLE, type StyleState } from "./components/StylePanel";
 import { PreviewPanel } from "./components/PreviewPanel";
-import { Ticker, Checklist, ECSection, FAQ } from "./components/Sections";
+import { Checklist, FAQ } from "./components/Sections";
 
 /* ------------------------------------------------------------------ */
 /* History persistence                                                 */
@@ -63,10 +63,8 @@ export default function App() {
         <div className="relative z-10">
           <Header theme={theme} onTheme={switchTheme} />
           <Opener />
-          <Ticker />
           <Workbench />
           <Checklist />
-          <ECSection />
           <FAQ />
           <Footer />
         </div>
@@ -98,7 +96,6 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
           {[
             ["Studio", "#studio"],
             ["Field manual", "#checklist"],
-            ["Specs", "#specs"],
             ["FAQ", "#faq"],
           ].map(([label, href]) => (
             <a
@@ -151,7 +148,7 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
 /* ------------------------------------------------------------------ */
 function Opener() {
   const sample = useMemo(() => {
-    const m = createMatrix("https://qrsmith.studio/spec/18004", "Q");
+    const m = createMatrix("https://qrsmith.studio", "Q");
     return renderSVG(m, { ...DEFAULT_STYLE, bg: "transparent" }, 420);
   }, []);
 
@@ -161,8 +158,8 @@ function Opener() {
         <Reveal>
           <div className="mb-5 flex flex-wrap items-center gap-2">
             <Tele tone="accent">QR code studio</Tele>
-            <Tele>ISO/IEC 18004</Tele>
-            <Tele tone="ok">zero egress</Tele>
+            <Tele tone="ok">no signup</Tele>
+            <Tele tone="ok">works offline</Tele>
           </div>
           <h1 className="font-display text-[clamp(42px,7vw,84px)] font-black leading-[0.95] tracking-[-0.025em] text-ink">
             Codes that scan
@@ -198,9 +195,9 @@ function Opener() {
           </div>
           <div className="mt-10 grid max-w-[440px] grid-cols-3 gap-3">
             {[
-              ["7", "payload types"],
-              ["5", "substrate proofs"],
-              ["0", "bytes sent out"],
+              ["7", "content types"],
+              ["5", "print previews"],
+              ["0", "data sent out"],
             ].map(([n, l]) => (
               <div key={l} className="rounded-[12px] border-[1.5px] border-ink bg-surface px-4 py-3 shadow-brutal-sm">
                 <span className="block font-display text-[26px] font-black leading-none text-accent2">{n}</span>
@@ -225,17 +222,17 @@ function Opener() {
             <div className="relative overflow-hidden rounded-[16px] border-[1.5px] border-ink bg-white p-7 shadow-brutal">
               <div className="mb-4 flex items-center justify-between">
                 <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-                  specimen · v7 · EC Q
+                  live preview
                 </span>
                 <span className="h-2.5 w-2.5 rotate-45 bg-accent" />
               </div>
               <div className="qr-live" dangerouslySetInnerHTML={{ __html: sample }} />
               <div className="mt-4 flex items-center justify-between border-t border-dashed border-neutral-200 pt-3">
                 <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-neutral-500">
-                  quiet zone · 4 mod
+                  clear margins
                 </span>
                 <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-neutral-500">
-                  21:1 contrast
+                  strong contrast
                 </span>
               </div>
             </div>
@@ -350,7 +347,7 @@ function Workbench() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Reveal className="space-y-6">
-          <ContentForms type={type} setType={setType} forms={forms} patch={setForms} payload={payload} />
+          <ContentForms type={type} setType={setType} forms={forms} patch={setForms} />
           <StylePanel style={style} setStyle={setStyle} />
         </Reveal>
         <Reveal>
@@ -439,9 +436,9 @@ function Footer() {
             </span>
           </div>
         </div>
-        <p className="max-w-[380px] font-mono text-[10.5px] font-medium uppercase leading-relaxed tracking-[0.1em] text-bg/60">
-          Encoding runs in your browser · nothing leaves the device ·
-          <span className="text-accent"> ISO/IEC 18004</span> module layout
+        <p className="max-w-[380px] text-[12.5px] font-semibold leading-relaxed text-bg/70">
+          Everything is generated right in your browser.
+          <span className="text-accent"> Nothing you create ever leaves this device.</span>
         </p>
         <div className="flex gap-2">
           <Tele tone="ok">✓ no trackers</Tele>

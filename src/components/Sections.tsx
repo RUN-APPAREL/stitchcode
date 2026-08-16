@@ -1,39 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, ShieldCheck, Ruler, Contrast, Aperture, Printer, BookOpen } from "lucide-react";
-import { EC_INFO, type ECLevel } from "../lib/qr";
-import { IndustrialCard, Reveal, Tele } from "./ui";
-
-/* ------------------------------------------------------------------ */
-/* Telemetry marquee                                                   */
-/* ------------------------------------------------------------------ */
-const TICKS = [
-  "QUIET ZONE ≥ 4 MODULES",
-  "ISO/IEC 18004 COMPLIANT",
-  "ECC LEVEL H FOR LOGOS",
-  "MIN CONTRAST 4.5 : 1",
-  "DARK ON LIGHT POLARITY",
-  "300 DPI FOR PRINT",
-  "TEST ON REAL HARDWARE",
-  "KEEP PRINTS ≥ 2 CM",
-  "ZERO NETWORK CALLS",
-];
-
-export function Ticker() {
-  const row = [...TICKS, ...TICKS];
-  return (
-    <div className="relative overflow-hidden border-y-[1.5px] border-ink bg-ink py-2.5">
-      <div className="animate-marquee flex w-max items-center gap-6">
-        {row.map((t, i) => (
-          <span key={i} className="flex items-center gap-6 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-bg">
-            {t}
-            <span className="inline-block h-[7px] w-[7px] rotate-45 bg-accent" />
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
+import { Reveal, Tele } from "./ui";
 
 /* ------------------------------------------------------------------ */
 /* Field manual — numbered print rules                                 */
@@ -42,7 +10,7 @@ const RULES = [
   {
     icon: Aperture,
     title: "Guard the quiet zone",
-    body: "Four modules of clear space on every side is the ISO minimum. Artwork, die-cuts and fold lines that creep into it are the number-one cause of dead codes.",
+    body: "Four squares of clear space on every side is the standard minimum. Artwork, die-cuts and fold lines that creep into it are the number-one cause of dead codes.",
   },
   {
     icon: Contrast,
@@ -66,8 +34,8 @@ const RULES = [
   },
   {
     icon: BookOpen,
-    title: "Keep the payload lean",
-    body: "Every byte adds modules. Short links, compact vCards and level-appropriate text keep codes sparse, fast and forgiving.",
+    title: "Keep the content lean",
+    body: "Every extra character makes the code denser. Short links, compact contact cards and to-the-point text keep codes sparse, fast and forgiving.",
   },
 ];
 
@@ -84,7 +52,7 @@ export function Checklist() {
           </h2>
         </div>
         <p className="max-w-[300px] text-[13.5px] font-semibold leading-relaxed text-ink-dim">
-          Distilled from ISO/IEC 18004 and a decade of print failures — the checks QRsmith runs live while you build.
+          Distilled from the print standard and a decade of failed labels — the same checks QRsmith runs live while you build.
         </p>
       </Reveal>
 
@@ -111,91 +79,12 @@ export function Checklist() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Error-correction spec table                                         */
-/* ------------------------------------------------------------------ */
-export function ECSection() {
-  return (
-    <section id="specs" className="mx-auto max-w-6xl scroll-mt-24 px-5 pb-20 sm:px-8">
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        <Reveal>
-          <Tele tone="accent" className="mb-3">error correction</Tele>
-          <h2 className="font-display text-[clamp(26px,3.4vw,38px)] font-black leading-[1.05] tracking-tight text-ink">
-            Four grades of damage tolerance.
-          </h2>
-          <p className="mt-4 text-[13.5px] font-semibold leading-relaxed text-ink-dim">
-            Reed–Solomon codes weave recovery data through the matrix. The more you reserve, the more of the label can be torn, faded or stickered over — and the denser the code becomes.
-          </p>
-          <ul className="mt-5 space-y-2.5">
-            {[
-              ["Screens & ephemera", "Level M"],
-              ["Everyday print", "Level Q"],
-              ["Logos & harsh surfaces", "Level H"],
-            ].map(([use, lvl]) => (
-              <li key={use} className="flex items-center gap-3 text-[13px] font-bold text-ink-dim">
-                <span className="h-[7px] w-[7px] rotate-45 bg-accent" />
-                {use}
-                <span className="ml-auto rounded-full border border-line bg-surface2 px-2.5 py-0.5 font-mono text-[10.5px] font-bold text-ink">
-                  {lvl}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Reveal>
-
-        <Reveal>
-          <IndustrialCard stripe="var(--t-accent2)">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left">
-                <thead>
-                  <tr className="border-b-[1.5px] border-ink bg-surface2/70">
-                    {["Level", "Grade", "Recovers", "Data capacity", "Recovery budget"].map((h) => (
-                      <th key={h} className="px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-muted">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-soft">
-                  {(Object.keys(EC_INFO) as ECLevel[]).map((k) => {
-                    const e = EC_INFO[k];
-                    return (
-                      <tr key={k} className="transition-colors hover:bg-accent/8">
-                        <td className="px-5 py-3.5">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-[8px] border-[1.5px] border-ink bg-ink font-mono text-[13px] font-bold text-bg">
-                            {k}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-[13px] font-black text-ink">{e.label}</td>
-                        <td className="px-5 py-3.5 text-[12.5px] font-semibold text-ink-dim">{e.recovery}</td>
-                        <td className="px-5 py-3.5 text-[12.5px] font-semibold text-ink-dim">{e.capacity}</td>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-[7px] w-24 overflow-hidden rounded-full border border-line bg-surface2">
-                              <div className="h-full rounded-full bg-accent" style={{ width: `${100 - e.pct}%` }} />
-                            </div>
-                            <span className="font-mono text-[10.5px] font-bold text-ink-muted">{100 - e.pct}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </IndustrialCard>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* FAQ accordion                                                       */
 /* ------------------------------------------------------------------ */
 const FAQS = [
   {
     q: "Are my codes generated on a server?",
-    a: "No. QRsmith is 100% local-first — encoding, styling and export all happen in your browser via a spec-compliant ISO/IEC 18004 engine. Nothing you type ever leaves the device, which is why the tool works fully offline.",
+    a: "No. QRsmith is 100% local-first — encoding, styling and export all happen in your browser with a fully spec-compliant engine. Nothing you type ever leaves the device, which is why the tool works fully offline.",
   },
   {
     q: "How big can I print my code?",
