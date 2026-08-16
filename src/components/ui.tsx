@@ -6,6 +6,7 @@ import {
   useId,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -224,19 +225,43 @@ export function Seg<T extends string>({
   className?: string;
 }) {
   const gid = useId();
+  const btns = useRef<Array<HTMLButtonElement | null>>([]);
+
+  /* WAI-ARIA radio pattern: roving focus + arrow-key cycling */
+  const onKey = (e: React.KeyboardEvent) => {
+    const idx = options.findIndex((o) => o.value === value);
+    if (idx < 0) return;
+    let next = -1;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % options.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+      next = (idx - 1 + options.length) % options.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = options.length - 1;
+    if (next >= 0) {
+      e.preventDefault();
+      onChange(options[next].value);
+      btns.current[next]?.focus();
+    }
+  };
+
   return (
     <div
       className={`inline-flex w-full rounded-full border-[1.5px] border-ink bg-surface2 p-1 ${className}`}
       role="radiogroup"
+      onKeyDown={onKey}
     >
-      {options.map((o) => {
+      {options.map((o, i) => {
         const active = o.value === value;
         return (
           <button
             key={o.value}
+            ref={(el) => {
+              btns.current[i] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={active ? 0 : -1}
             title={o.title}
             onClick={() => onChange(o.value)}
             className={`relative flex-1 rounded-full px-2 py-1.5 text-[11.5px] font-extrabold uppercase tracking-[0.05em] transition-colors ${

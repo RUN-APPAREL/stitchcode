@@ -165,6 +165,38 @@ body {
   height: auto;
 }
 
+/* Print proof sheet — only the paper prints, the studio stays home */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  .app-shell {
+    display: none !important;
+  }
+  .print-overlay {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .print-toolbar {
+    display: none !important;
+  }
+  .print-paper {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .print-paper,
+  .print-paper * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* Range sliders — themed, tactile thumbs */
 .qr-slider {
   background: var(--t-surface2);

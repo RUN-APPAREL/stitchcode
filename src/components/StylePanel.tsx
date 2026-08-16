@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { ArrowDownUp, Upload, Trash2, AlertTriangle, Palette } from "lucide-react";
+import { ArrowDownUp, Upload, Trash2, AlertTriangle, Palette, Sparkles } from "lucide-react";
 import type { ECLevel, DotStyle, CornerStyle, QRRenderOptions } from "../lib/qr";
 import { EC_INFO } from "../lib/qr";
 import { ColorField, IndustrialCard, Pill, Seg, SelectField, SliderRow, Tele, Tip, useToast } from "./ui";
@@ -60,6 +60,13 @@ export const DEFAULT_STYLE: StyleState = {
   exportPx: 1024,
 };
 
+/** Bundled high-contrast sample mark — lets people try the merge instantly. */
+const SAMPLE_LOGO =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="30" fill="#141412"/><path fill="#fff" d="M78 12 36 70h22L46 116l46-62H68l10-42z"/></svg>`,
+  );
+
 const PRESETS: Array<{ name: string; fg: string; bg: string }> = [
   { name: "Press black", fg: "#1c1c1a", bg: "#ffffff" },
   { name: "Vermillion", fg: "#c22e12", bg: "#fff6f0" },
@@ -85,6 +92,16 @@ export function StylePanel({
   const fileRef = useRef<HTMLInputElement>(null);
   const patch = (p: Partial<StyleState>) => setStyle((s) => ({ ...s, ...p }));
 
+  const applyLogo = (logo: string, doneMsg: string) => {
+    if (style.ec !== "H") {
+      patch({ logo, ec: "H" });
+      toast("success", `${doneMsg} — error correction raised to H`);
+    } else {
+      patch({ logo });
+      toast("success", doneMsg);
+    }
+  };
+
   const onLogoFile = (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -96,16 +113,7 @@ export function StylePanel({
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
-      const logo = String(reader.result);
-      if (style.ec !== "H") {
-        patch({ logo, ec: "H" });
-        toast("success", "Logo added — error correction raised to H");
-      } else {
-        patch({ logo });
-        toast("success", "Logo embedded in the centre");
-      }
-    };
+    reader.onload = () => applyLogo(String(reader.result), "Logo merged into the centre");
     reader.readAsDataURL(file);
   };
 
@@ -236,9 +244,14 @@ export function StylePanel({
                 <Trash2 size={12} /> Remove
               </Pill>
             ) : (
-              <Pill variant="dark" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => fileRef.current?.click()}>
-                <Upload size={12} /> Upload
-              </Pill>
+              <span className="flex items-center gap-1.5">
+                <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => applyLogo(SAMPLE_LOGO, "Sample mark merged")}>
+                  <Sparkles size={12} /> Try sample
+                </Pill>
+                <Pill variant="dark" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => fileRef.current?.click()}>
+                  <Upload size={12} /> Upload
+                </Pill>
+              </span>
             )}
             <input
               ref={fileRef}

@@ -69,7 +69,7 @@ export default function App() {
   return (
     <ToastProvider>
       <MotionConfig reducedMotion="user">
-      <div className="relative min-h-screen bg-bg text-ink">
+      <div className="app-shell relative min-h-screen bg-bg text-ink">
         {/* ambient layers */}
         <div className="bg-blueprint pointer-events-none fixed inset-0 z-0" aria-hidden />
         <div className="bg-noise pointer-events-none fixed inset-0 z-0 opacity-60" aria-hidden />

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge, Printer } from "lucide-react";
 import type { QRMatrix } from "../lib/qr";
 import {
   canvasToBlob,
@@ -44,6 +45,7 @@ export function PreviewPanel({
 }) {
   const toast = useToast();
   const [substrate, setSubstrate] = useState<SubstrateId>("white");
+  const [sheet, setSheet] = useState(false);
   const sub = SUBSTRATES.find((s) => s.id === substrate)!;
 
   /* style state → renderer options (merged-logo grid included) */
@@ -294,6 +296,14 @@ export function PreviewPanel({
             >
               <Copy size={15} />
             </Pill>
+            <Pill
+              variant="ghost"
+              onClick={() => setSheet(true)}
+              disabled={!matrix}
+              title="Open a crop-marked print proof"
+            >
+              <Printer size={15} /> <span className="hidden sm:inline">Print proof</span>
+            </Pill>
           </div>
           {matrix && (
             <p className="mt-2.5 flex items-center justify-between text-[10.5px] font-semibold text-ink-muted">
@@ -307,6 +317,175 @@ export function PreviewPanel({
           )}
         </div>
       </IndustrialCard>
+
+      {sheet && matrix && (
+        <PrintSheet
+          matrix={matrix}
+          style={style}
+          payload={payload}
+          logoGrid={logoGrid}
+          logoN={logoN}
+          onClose={() => setSheet(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Print proof sheet — portal'd so only the paper reaches the printer  */
+/* ------------------------------------------------------------------ */
+const TICKS = [
+  "-top-2 -left-2 border-t border-l",
+  "-top-2 -right-2 border-t border-r",
+  "-bottom-2 -left-2 border-b border-l",
+  "-bottom-2 -right-2 border-b border-r",
+];
+
+function PrintSheet({
+  matrix,
+  style,
+  payload,
+  logoGrid,
+  logoN,
+  onClose,
+}: {
+  matrix: QRMatrix;
+  style: StyleState;
+  payload: string;
+  logoGrid: Uint8Array | null;
+  logoN: number;
+  onClose: () => void;
+}) {
+  const cm = ((style.exportPx / 300) * 2.54).toFixed(1);
+  const svg = renderSVG(matrix, toRenderOptions(style, logoGrid, logoN), 640);
+  const date = new Date().toLocaleDateString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const excerpt = payload.length > 64 ? `${payload.slice(0, 61)}…` : payload;
+
+  useEffect(() => {
+    const after = () => onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("afterprint", after);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("afterprint", after);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  const framed = (width: string, key: string) => (
+    <div className="relative" key={key}>
+      {TICKS.map((t) => (
+        <span key={t} className={`pointer-events-none absolute h-3.5 w-3.5 border-neutral-400 ${t}`} />
+      ))}
+      <div className="qr-live" style={{ width }} dangerouslySetInnerHTML={{ __html: svg }} />
+    </div>
+  );
+
+  return createPortal(
+    <div
+      className="print-overlay fixed inset-0 z-[100] overflow-y-auto bg-ink/70 px-4 py-10 backdrop-blur-[2px]"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Print proof sheet"
+    >
+      <div
+        className="print-toolbar sticky top-4 z-10 mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border-[1.5px] border-bg/30 bg-ink px-2 py-2 shadow-brutal-accent"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-[12px] font-extrabold uppercase tracking-[0.08em] text-accent-ink transition-transform hover:scale-[1.03] active:scale-95"
+        >
+          <Printer size={14} /> Print this sheet
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full px-4 py-2 text-[12px] font-extrabold uppercase tracking-[0.08em] text-bg/80 transition-colors hover:text-bg"
+        >
+          Close
+        </button>
+      </div>
+
+      <div
+        className="print-paper mx-auto w-full max-w-[620px] border-[1.5px] border-ink bg-white text-neutral-900 shadow-brutal-accent"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-10">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-display text-[22px] font-black leading-none tracking-tight">QRsmith</p>
+              <p className="mt-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.28em] text-neutral-500">
+                Print proof
+              </p>
+            </div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500">{date}</p>
+          </div>
+          <div className="mt-4 border-t-2 border-neutral-900" />
+
+          <div className="flex justify-center py-10">{framed(`${cm}cm`, "main")}</div>
+          <p className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+            {cm} × {cm} cm — your selected export size at 300 DPI
+          </p>
+
+          <div className="mt-9 grid grid-cols-[auto_1fr] items-center gap-6 border-t border-dashed border-neutral-300 pt-7">
+            {framed("2cm", "min")}
+            <div>
+              <p className="font-display text-[13px] font-black uppercase tracking-tight">
+                Minimum check — 2.0 cm
+              </p>
+              <p className="mt-1 text-[12px] font-medium leading-relaxed text-neutral-600">
+                Scan this small copy from about 25 cm away. If it reads, the code is print-safe at
+                every size above it.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-3 border-t-2 border-neutral-900 pt-4 sm:grid-cols-4">
+            <Meta
+              label="Ink"
+              value={
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-3 w-3 rounded-[3px] border border-neutral-400"
+                    style={{ background: style.fg }}
+                  />
+                  {style.fg}
+                </span>
+              }
+            />
+            <Meta label="Correction" value={`Level ${style.ec}`} />
+            <Meta label="Clear margin" value={`${style.margin} squares`} />
+            <Meta label="Content" value={excerpt} />
+          </div>
+
+          <div className="mt-8 flex items-center justify-between gap-3 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-neutral-400">
+            <span>Print at 100% scale — never “fit to page”</span>
+            <span>generated locally · nothing sent</span>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function Meta({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-[8.5px] font-bold uppercase tracking-[0.18em] text-neutral-400">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate font-mono text-[11px] font-bold text-neutral-800">{value}</p>
     </div>
   );
 }
