@@ -8,7 +8,7 @@ export type ECLevel = "L" | "M" | "Q" | "H";
 export type DotStyle = "square" | "rounded" | "dots";
 export type CornerStyle = "square" | "rounded";
 
-export interface QROptions {
+export interface QRRenderOptions {
   ec: ECLevel;
   /** quiet zone, in modules — spec minimum is 4 */
   margin: number;
@@ -16,9 +16,55 @@ export interface QROptions {
   bg: string;
   dotStyle: DotStyle;
   cornerStyle: CornerStyle;
-  logo: string | null;
-  /** logo width as fraction of the code width (0.1 – 0.3) */
+  /**
+   * Merged logo: an N×N binary grid (1 = dark module) that replaces the
+   * data modules in the centre of the code. Level H restores the data
+   * underneath, so the mark literally becomes part of the matrix.
+   */
+  logoGrid: Uint8Array | null;
+  /** grid resolution in modules (logoGrid is logoN × logoN) */
+  logoN: number;
+  /** logo region as fraction of the code width (0.1 – 0.3) */
   logoScale: number;
+}
+
+/** Odd module count for the merged-logo region, centred in the code. */
+export function logoRegionModules(codeSize: number, scale: number): number {
+  let n = Math.round(codeSize * scale);
+  n = Math.max(5, Math.min(n, Math.floor(codeSize * 0.34)));
+  return n % 2 === 0 ? n + 1 : n;
+}
+
+/**
+ * Rasterise an image into an n×n module grid. Each cell is composited over
+ * the code's background colour, then binarised against `threshold` — dark
+ * pixels become dark modules, light pixels become light modules.
+ */
+export async function logoToGrid(
+  src: string,
+  n: number,
+  threshold: number,
+  bg: string,
+): Promise<Uint8Array> {
+  const img = await loadImage(src);
+  const canvas = document.createElement("canvas");
+  canvas.width = n;
+  canvas.height = n;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  ctx.fillStyle = bg === "transparent" ? "#ffffff" : bg;
+  ctx.fillRect(0, 0, n, n);
+  const s = Math.max(n / img.width, n / img.height);
+  const dw = img.width * s;
+  const dh = img.height * s;
+  ctx.drawImage(img, (n - dw) / 2, (n - dh) / 2, dw, dh);
+  const { data } = ctx.getImageData(0, 0, n, n);
+  const grid = new Uint8Array(n * n);
+  for (let i = 0; i < n * n; i++) {
+    const lum =
+      (0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]) / 255;
+    grid[i] = lum < threshold ? 1 : 0;
+  }
+  return grid;
 }
 
 export interface QRMatrix {
@@ -149,7 +195,7 @@ function isFunctional(x: number, y: number, size: number, centers: Array<[number
 
 const f = (n: number) => (Math.round(n * 1000) / 1000).toString();
 
-function finderSVG(ox: number, oy: number, o: QROptions): string {
+function finderSVG(ox: number, oy: number, o: QRRenderOptions): string {
   const r = o.cornerStyle === "rounded";
   const ro = r ? 2.3 : 0;
   const ri = r ? 1.5 : 0;
@@ -161,7 +207,36 @@ function finderSVG(ox: number, oy: number, o: QROptions): string {
   );
 }
 
-export function renderSVG(m: QRMatrix, o: QROptions, px = 560): string {
+/**
+ * Merged-logo pass: paints the logo's module grid into the centre of the
+ * matrix. Dark cells become foreground modules, light cells background —
+ * the mark IS the code. Functional patterns are never overwritten.
+ */
+function mergedLogoSVG(
+  m: QRMatrix,
+  o: QRRenderOptions,
+  centers: Array<[number, number]>,
+  mg: number,
+): string {
+  if (!o.logoGrid || o.logoN < 3 || o.logoN > m.size) return "";
+  const region = o.logoN;
+  const ox = Math.floor((m.size - region) / 2);
+  let out = "";
+  for (let j = 0; j < region; j++) {
+    for (let i = 0; i < region; i++) {
+      const x = ox + i;
+      const y = ox + j;
+      if (inFinderRegion(x, y, m.size) || isFunctional(x, y, m.size, centers)) continue;
+      const dark = o.logoGrid[j * region + i] === 1;
+      out += `<rect x="${mg + x}" y="${mg + y}" width="1" height="1" fill="${
+        dark ? o.fg : o.bg
+      }"/>`;
+    }
+  }
+  return out;
+}
+
+export function renderSVG(m: QRMatrix, o: QRRenderOptions, px = 560): string {
   const centers = alignmentCenters(m.version);
   const total = m.size + o.margin * 2;
   const crisp = o.dotStyle === "square" ? ` shape-rendering="crispEdges"` : "";
@@ -189,18 +264,7 @@ export function renderSVG(m: QRMatrix, o: QROptions, px = 560): string {
   body += finderSVG(mg + m.size - 7, mg, o);
   body += finderSVG(mg, mg + m.size - 7, o);
 
-  if (o.logo) {
-    const lw = m.size * o.logoScale;
-    const pad = lw * 0.16;
-    const lx = mg + (m.size - lw) / 2;
-    body +=
-      `<rect x="${f(lx - pad)}" y="${f(lx - pad)}" width="${f(lw + pad * 2)}" height="${f(
-        lw + pad * 2,
-      )}" rx="${f((lw + pad * 2) * 0.18)}" fill="${o.bg}"/>` +
-      `<image href="${o.logo}" x="${f(lx)}" y="${f(lx)}" width="${f(lw)}" height="${f(
-        lw,
-      )}" preserveAspectRatio="xMidYMid slice"/>`;
-  }
+  body += mergedLogoSVG(m, o, centers, mg);
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
@@ -243,7 +307,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 export async function renderCanvas(
   m: QRMatrix,
-  o: QROptions,
+  o: QRRenderOptions,
   px: number,
 ): Promise<HTMLCanvasElement> {
   const total = m.size + o.margin * 2;
@@ -299,25 +363,19 @@ export async function renderCanvas(
   finder(m.size - 7, 0);
   finder(0, m.size - 7);
 
-  if (o.logo) {
-    try {
-      const img = await loadImage(o.logo);
-      const lw = m.size * o.logoScale * s;
-      const pad = lw * 0.16;
-      const lx = (o.margin + (m.size - m.size * o.logoScale) / 2) * s;
-      ctx.fillStyle = o.bg;
-      rr(ctx, lx - pad, lx - pad, lw + pad * 2, lw + pad * 2, (lw + pad * 2) * 0.18);
-      ctx.fill();
-      ctx.save();
-      rr(ctx, lx, lx, lw, lw, lw * 0.14);
-      ctx.clip();
-      const scale = Math.max(lw / img.width, lw / img.height);
-      const dw = img.width * scale;
-      const dh = img.height * scale;
-      ctx.drawImage(img, lx + (lw - dw) / 2, lx + (lw - dh) / 2, dw, dh);
-      ctx.restore();
-    } catch {
-      /* logo failed to load — export without it */
+  /* merged logo — the mark's cells become real modules */
+  if (o.logoGrid && o.logoN >= 3 && o.logoN <= m.size) {
+    const region = o.logoN;
+    const ox = Math.floor((m.size - region) / 2);
+    for (let j = 0; j < region; j++) {
+      for (let i = 0; i < region; i++) {
+        const x = ox + i;
+        const y = ox + j;
+        if (inFinderRegion(x, y, m.size) || isFunctional(x, y, m.size, centers)) continue;
+        const dark = o.logoGrid[j * region + i] === 1;
+        ctx.fillStyle = dark ? o.fg : o.bg;
+        ctx.fillRect((x + o.margin) * s, (y + o.margin) * s, s + 0.5, s + 0.5);
+      }
     }
   }
 

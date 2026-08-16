@@ -94,8 +94,8 @@ const FAQS = [
     a: "As large as you like. The SVG export is true vector, so a billboard is as sharp as a business card. For PNG, pick 2048px for large-format work and check the 300-DPI size readout under the proof.",
   },
   {
-    q: "Will my logo break the scan?",
-    a: "Only if it's greedy. QRsmith forces error correction to level H when you add a logo and flags coverage above ~26%. Keep the mark small, centred, and away from the three finder eyes and it will decode everywhere.",
+    q: "How does the logo merge work?",
+    a: "Your mark isn't layered on top — it's rasterised into the matrix, so its dark pixels become real dark modules and its light pixels become the field. Level H error correction is enforced because those centre modules replace data, and coverage above ~26% is flagged as a risk.",
   },
   {
     q: "Why does the app insist on a light background?",

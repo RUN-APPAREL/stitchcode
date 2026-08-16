@@ -13,8 +13,9 @@ import { DEFAULT_FORMS, buildPayload, summarize } from "./lib/payloads";
 import { createMatrix, renderSVG, type QRMatrix } from "./lib/qr";
 import { ToastProvider, Reveal, Pill, Tele, Tip, useToast } from "./components/ui";
 import { ContentForms } from "./components/ContentForms";
-import { StylePanel, DEFAULT_STYLE, type StyleState } from "./components/StylePanel";
+import { StylePanel, DEFAULT_STYLE, toRenderOptions, type StyleState } from "./components/StylePanel";
 import { PreviewPanel } from "./components/PreviewPanel";
+import { useLogoGrid } from "./lib/useLogoGrid";
 import { Checklist, FAQ } from "./components/Sections";
 
 /* ------------------------------------------------------------------ */
@@ -161,7 +162,7 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
 function Opener() {
   const sample = useMemo(() => {
     const m = createMatrix("https://qrsmith.studio", "Q");
-    return renderSVG(m, { ...DEFAULT_STYLE, bg: "transparent" }, 420);
+    return renderSVG(m, toRenderOptions(DEFAULT_STYLE, null, 0, "transparent"), 420);
   }, []);
 
   return (
@@ -280,6 +281,15 @@ function Workbench() {
     }
   }, [payload, style.ec]);
 
+  /* rasterise the uploaded mark into a module grid for the merge */
+  const { grid: logoGrid, n: logoN } = useLogoGrid(
+    style.logo,
+    matrix,
+    style.logoScale,
+    style.logoThreshold,
+    style.bg,
+  );
+
   /* autosave history (debounced) */
   useEffect(() => {
     if (!payload || !matrix) return;
@@ -363,7 +373,14 @@ function Workbench() {
           <StylePanel style={style} setStyle={setStyle} />
         </Reveal>
         <Reveal>
-          <PreviewPanel payload={payload} matrix={matrix} style={style} filenameBase={filenameBase} />
+          <PreviewPanel
+            payload={payload}
+            matrix={matrix}
+            style={style}
+            filenameBase={filenameBase}
+            logoGrid={logoGrid}
+            logoN={logoN}
+          />
         </Reveal>
       </div>
 
@@ -386,7 +403,7 @@ function Workbench() {
               let thumb = "";
               try {
                 const m = createMatrix(item.payload, item.style.ec);
-                thumb = renderSVG(m, { ...item.style, margin: 2 }, 96);
+                thumb = renderSVG(m, { ...toRenderOptions(item.style, null, 0), margin: 2 }, 96);
               } catch {
                 thumb = "";
               }

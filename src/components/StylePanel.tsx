@@ -1,10 +1,43 @@
 import { useRef } from "react";
 import { ArrowDownUp, Upload, Trash2, AlertTriangle, Palette } from "lucide-react";
-import type { QROptions, ECLevel, DotStyle, CornerStyle } from "../lib/qr";
+import type { ECLevel, DotStyle, CornerStyle, QRRenderOptions } from "../lib/qr";
 import { EC_INFO } from "../lib/qr";
 import { ColorField, IndustrialCard, Pill, Seg, SelectField, SliderRow, Tele, Tip, useToast } from "./ui";
 
-export interface StyleState extends QROptions {
+/** Map the user-facing style state onto the renderer's options. */
+export function toRenderOptions(
+  s: StyleState,
+  logoGrid: Uint8Array | null,
+  logoN: number,
+  bgOverride?: string,
+): QRRenderOptions {
+  return {
+    ec: s.ec,
+    margin: s.margin,
+    fg: s.fg,
+    bg: bgOverride ?? s.bg,
+    dotStyle: s.dotStyle,
+    cornerStyle: s.cornerStyle,
+    logoGrid,
+    logoN,
+    logoScale: s.logoScale,
+  };
+}
+
+export interface StyleState {
+  ec: ECLevel;
+  /** quiet zone in modules */
+  margin: number;
+  fg: string;
+  bg: string;
+  dotStyle: DotStyle;
+  cornerStyle: CornerStyle;
+  /** uploaded mark, as a data URL */
+  logo: string | null;
+  /** merged-logo region as a fraction of the code width */
+  logoScale: number;
+  /** luminance cutoff — below it, a pixel becomes a dark module */
+  logoThreshold: number;
   exportPx: number;
 }
 
@@ -17,6 +50,7 @@ export const DEFAULT_STYLE: StyleState = {
   cornerStyle: "square",
   logo: null,
   logoScale: 0.2,
+  logoThreshold: 0.5,
   exportPx: 1024,
 };
 
@@ -181,10 +215,13 @@ export function StylePanel({
           )}
         </div>
 
-        {/* logo */}
+        {/* merged logo */}
         <div className="mt-5 rounded-[12px] border-[1.5px] border-dashed border-line bg-surface2/50 p-3.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[12px] font-bold text-ink-dim">Centre logo</span>
+            <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
+              Merged logo
+              <Tip text="Your mark is pixelated into the matrix and becomes real modules — dark pixels turn into dark squares, light ones into the field. It's part of the code, not a sticker on top." />
+            </span>
             {style.logo ? (
               <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => patch({ logo: null })}>
                 <Trash2 size={12} /> Remove
@@ -206,16 +243,26 @@ export function StylePanel({
             <div className="mt-3 flex items-center gap-3">
               <img
                 src={style.logo}
-                alt="Embedded logo"
+                alt="Logo merged into the code"
                 className="h-11 w-11 rounded-[8px] border-[1.5px] border-ink object-contain"
               />
-              <div className="flex-1">
+              <div className="flex-1 space-y-3">
                 <SliderRow
-                  label="Logo coverage"
+                  label="Merge size"
                   value={Math.round(style.logoScale * 100)}
                   min={10}
                   max={30}
                   onChange={(v) => patch({ logoScale: v / 100 })}
+                  format={(v) => `${v}%`}
+                />
+                <SliderRow
+                  label="Ink threshold"
+                  tip="How dark a pixel must be to become a dark module. Lower values keep only the strongest ink — a sparser, more open merge."
+                  value={Math.round(style.logoThreshold * 100)}
+                  min={15}
+                  max={85}
+                  step={5}
+                  onChange={(v) => patch({ logoThreshold: v / 100 })}
                   format={(v) => `${v}%`}
                 />
               </div>
@@ -223,12 +270,13 @@ export function StylePanel({
           )}
           {style.logo && style.ec !== "H" && (
             <p className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-danger">
-              <AlertTriangle size={12} /> Logos need level H — switch error correction up.
+              <AlertTriangle size={12} /> A merged mark replaces data — switch error correction up to H.
             </p>
           )}
           {!style.logo && (
             <p className="mt-2 text-[10.5px] font-medium leading-snug text-ink-muted">
-              Level H reserves ~30% redundancy, so a centred mark up to ~20% width still decodes everywhere.
+              Upload a mark and it's woven into the matrix — the logo becomes real modules, and
+              level H restores the data underneath. Bold, high-contrast marks merge best.
             </p>
           )}
         </div>

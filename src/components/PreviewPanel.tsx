@@ -9,7 +9,7 @@ import {
   renderCanvas,
   renderSVG,
 } from "../lib/qr";
-import type { StyleState } from "./StylePanel";
+import { toRenderOptions, type StyleState } from "./StylePanel";
 import { IndustrialCard, PassFail, Pill, SpecCell, Tele, useToast } from "./ui";
 
 const SUBSTRATES = [
@@ -32,20 +32,28 @@ export function PreviewPanel({
   matrix,
   style,
   filenameBase,
+  logoGrid,
+  logoN,
 }: {
   payload: string;
   matrix: QRMatrix | null;
   style: StyleState;
   filenameBase: string;
+  logoGrid: Uint8Array | null;
+  logoN: number;
 }) {
   const toast = useToast();
   const [substrate, setSubstrate] = useState<SubstrateId>("white");
   const sub = SUBSTRATES.find((s) => s.id === substrate)!;
 
+  /* style state → renderer options (merged-logo grid included) */
+  const renderOpts = (bg: string) => toRenderOptions(style, logoGrid, logoN, bg);
+
   /* transparent-bg render so the code sits ON the substrate */
   const printed = useMemo(
-    () => (matrix ? renderSVG(matrix, { ...style, bg: "transparent" }, 640) : ""),
-    [matrix, style],
+    () => (matrix ? renderSVG(matrix, renderOpts("transparent"), 640) : ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [matrix, style, logoGrid, logoN],
   );
 
   const subContrast = useMemo(
@@ -85,9 +93,11 @@ export function PreviewPanel({
     if (style.logo) {
       const okLogo = style.ec === "H" && style.logoScale <= 0.26;
       list.push({
-        label: "Logo",
+        label: "Merged logo",
         detail: okLogo
-          ? "Small, centred, and backed by high error correction"
+          ? logoN > 0
+            ? `Woven in as ${logoN}×${logoN} real modules, backed by level H`
+            : "Rasterising the mark into modules…"
           : style.ec !== "H"
             ? "Switch error correction to High first"
             : "It covers too much of the code — shrink it",
@@ -108,7 +118,7 @@ export function PreviewPanel({
       pass: matrix.version <= 20,
     });
     return list;
-  }, [matrix, style, payload]);
+  }, [matrix, style, payload, logoN]);
 
   const passed = checks.filter((c) => c.pass).length;
   const verified = matrix !== null && passed === checks.length && checks.length > 0;
@@ -118,7 +128,7 @@ export function PreviewPanel({
 
   const doPng = async (): Promise<Blob | null> => {
     if (!matrix) return null;
-    const canvas = await renderCanvas(matrix, style, style.exportPx);
+    const canvas = await renderCanvas(matrix, renderOpts(style.bg), style.exportPx);
     return canvasToBlob(canvas);
   };
 
@@ -135,7 +145,9 @@ export function PreviewPanel({
 
   const onDownloadSvg = () => {
     if (!matrix) return;
-    const blob = new Blob([renderSVG(matrix, style, style.exportPx)], { type: "image/svg+xml" });
+    const blob = new Blob([renderSVG(matrix, renderOpts(style.bg), style.exportPx)], {
+      type: "image/svg+xml",
+    });
     downloadBlob(blob, `${filenameBase}.svg`);
     toast("success", "Vector SVG saved — infinite scale for print");
   };
@@ -191,7 +203,7 @@ export function PreviewPanel({
         <div className={`relative mx-5 mt-3.5 flex items-center justify-center rounded-[12px] border-[1.5px] border-ink p-6 ${sub.cls}`}>
           {matrix ? (
             <div
-              key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logo?.length ?? 0}`}
+              key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logoThreshold}:${logoN}:${style.logo?.length ?? 0}`}
               className="qr-pop qr-live w-full max-w-[300px]"
               dangerouslySetInnerHTML={{ __html: printed }}
             />
