@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { logoRegionModules, logoToGrid, type QRMatrix } from "./qr";
 
 export interface LogoGridState {
@@ -10,35 +10,38 @@ export interface LogoGridState {
 /**
  * Rasterises the uploaded logo into a binary module grid sized to the
  * current code. Re-runs whenever the image, code size, merge size,
- * threshold or background colour changes.
+ * threshold, dither mode or background colour changes.
+ *
+ * A monotonically increasing request id guards against out-of-order
+ * resolutions: if a newer rasterisation is requested before an older one
+ * finishes, the stale result is discarded.
  */
 export function useLogoGrid(
   logo: string | null,
   matrix: QRMatrix | null,
   scale: number,
   threshold: number,
+  dither: boolean,
   bg: string,
 ): LogoGridState {
   const [state, setState] = useState<LogoGridState>({ grid: null, n: 0 });
+  const reqId = useRef(0);
 
   useEffect(() => {
-    let live = true;
+    const id = ++reqId.current;
     if (!logo || !matrix) {
       setState({ grid: null, n: 0 });
       return;
     }
     const n = logoRegionModules(matrix.size, scale);
-    logoToGrid(logo, n, threshold, bg)
+    logoToGrid(logo, n, threshold, bg, dither)
       .then((grid) => {
-        if (live) setState({ grid, n });
+        if (reqId.current === id) setState({ grid, n });
       })
       .catch(() => {
-        if (live) setState({ grid: null, n: 0 });
+        if (reqId.current === id) setState({ grid: null, n: 0 });
       });
-    return () => {
-      live = false;
-    };
-  }, [logo, matrix, scale, threshold, bg]);
+  }, [logo, matrix, scale, threshold, dither, bg]);
 
   return state;
 }

@@ -24,27 +24,36 @@ export interface QRRenderOptions {
   logoGrid: Uint8Array | null;
   /** grid resolution in modules (logoGrid is logoN × logoN) */
   logoN: number;
-  /** logo region as fraction of the code width (0.1 – 0.3) */
+  /** logo region as fraction of the code width (0.1 – 0.5) */
   logoScale: number;
 }
 
-/** Odd module count for the merged-logo region, centred in the code. */
+/**
+ * Odd module count for the merged-logo region, centred in the code. Width is
+ * capped at 50% → ≤ 25% of the code's area, safely inside level H's ~30%
+ * recovery budget (industry guidance caps logos at ≤ 30% of area).
+ */
 export function logoRegionModules(codeSize: number, scale: number): number {
   let n = Math.round(codeSize * scale);
-  n = Math.max(5, Math.min(n, Math.floor(codeSize * 0.34)));
+  n = Math.max(5, Math.min(n, Math.floor(codeSize * 0.5)));
   return n % 2 === 0 ? n + 1 : n;
 }
 
 /**
- * Rasterise an image into an n×n module grid. Each cell is composited over
- * the code's background colour, then binarised against `threshold` — dark
- * pixels become dark modules, light pixels become light modules.
+ * Rasterise an image into an n×n module grid.
+ *
+ * The whole mark is fitted inside the region (never cropped), composited over
+ * the code's background so transparency behaves, reduced to luminance, then
+ * binarised. With `dither` on, Floyd–Steinberg error diffusion spreads the
+ * quantisation error to neighbouring cells — the halftone technique that keeps
+ * gradients, shadows and thin strokes legible at QR resolution.
  */
 export async function logoToGrid(
   src: string,
   n: number,
   threshold: number,
   bg: string,
+  dither: boolean,
 ): Promise<Uint8Array> {
   const img = await loadImage(src);
   const canvas = document.createElement("canvas");
@@ -53,16 +62,42 @@ export async function logoToGrid(
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.fillStyle = bg === "transparent" ? "#ffffff" : bg;
   ctx.fillRect(0, 0, n, n);
-  const s = Math.max(n / img.width, n / img.height);
+  /* contain-fit: scale to fit, centre, leave field-colour letterboxing */
+  const s = Math.min(n / img.width, n / img.height);
   const dw = img.width * s;
   const dh = img.height * s;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, (n - dw) / 2, (n - dh) / 2, dw, dh);
+
   const { data } = ctx.getImageData(0, 0, n, n);
-  const grid = new Uint8Array(n * n);
+  const lum = new Float32Array(n * n);
   for (let i = 0; i < n * n; i++) {
-    const lum =
+    lum[i] =
       (0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]) / 255;
-    grid[i] = lum < threshold ? 1 : 0;
+  }
+
+  const grid = new Uint8Array(n * n);
+  if (!dither) {
+    for (let i = 0; i < n * n; i++) grid[i] = lum[i] < threshold ? 1 : 0;
+    return grid;
+  }
+
+  /* Floyd–Steinberg error diffusion */
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const idx = j * n + i;
+      const old = lum[idx];
+      const dark = old < threshold ? 1 : 0;
+      grid[idx] = dark;
+      const err = old - (dark ? 0 : 1);
+      if (i + 1 < n) lum[idx + 1] += (err * 7) / 16;
+      if (j + 1 < n) {
+        if (i > 0) lum[idx + n - 1] += (err * 3) / 16;
+        lum[idx + n] += (err * 5) / 16;
+        if (i + 1 < n) lum[idx + n + 1] += err / 16;
+      }
+    }
   }
   return grid;
 }
@@ -210,14 +245,14 @@ function finderSVG(ox: number, oy: number, o: QRRenderOptions): string {
 /**
  * Merged-logo pass: paints the logo's module grid into the centre of the
  * matrix. Dark cells become foreground modules, light cells background —
- * the mark IS the code. Functional patterns are never overwritten.
+ * the mark IS the code.
+ *
+ * Finder zones are never touched. A central alignment pattern (versions 7+)
+ * may be absorbed — those codes always carry two or more alignment patterns
+ * besides it, so decoders cope (this is the same trade-off every branded
+ * QR makes when a logo sits mid-symbol; level H absorbs the loss).
  */
-function mergedLogoSVG(
-  m: QRMatrix,
-  o: QRRenderOptions,
-  centers: Array<[number, number]>,
-  mg: number,
-): string {
+function mergedLogoSVG(m: QRMatrix, o: QRRenderOptions, mg: number): string {
   if (!o.logoGrid || o.logoN < 3 || o.logoN > m.size) return "";
   const region = o.logoN;
   const ox = Math.floor((m.size - region) / 2);
@@ -226,7 +261,7 @@ function mergedLogoSVG(
     for (let i = 0; i < region; i++) {
       const x = ox + i;
       const y = ox + j;
-      if (inFinderRegion(x, y, m.size) || isFunctional(x, y, m.size, centers)) continue;
+      if (inFinderRegion(x, y, m.size)) continue;
       const dark = o.logoGrid[j * region + i] === 1;
       out += `<rect x="${mg + x}" y="${mg + y}" width="1" height="1" fill="${
         dark ? o.fg : o.bg
@@ -264,7 +299,7 @@ export function renderSVG(m: QRMatrix, o: QRRenderOptions, px = 560): string {
   body += finderSVG(mg + m.size - 7, mg, o);
   body += finderSVG(mg, mg + m.size - 7, o);
 
-  body += mergedLogoSVG(m, o, centers, mg);
+  body += mergedLogoSVG(m, o, mg);
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
@@ -363,7 +398,7 @@ export async function renderCanvas(
   finder(m.size - 7, 0);
   finder(0, m.size - 7);
 
-  /* merged logo — the mark's cells become real modules */
+  /* merged logo — the mark's cells become real modules (finder zones guarded) */
   if (o.logoGrid && o.logoN >= 3 && o.logoN <= m.size) {
     const region = o.logoN;
     const ox = Math.floor((m.size - region) / 2);
@@ -371,7 +406,7 @@ export async function renderCanvas(
       for (let i = 0; i < region; i++) {
         const x = ox + i;
         const y = ox + j;
-        if (inFinderRegion(x, y, m.size) || isFunctional(x, y, m.size, centers)) continue;
+        if (inFinderRegion(x, y, m.size)) continue;
         const dark = o.logoGrid[j * region + i] === 1;
         ctx.fillStyle = dark ? o.fg : o.bg;
         ctx.fillRect((x + o.margin) * s, (y + o.margin) * s, s + 0.5, s + 0.5);

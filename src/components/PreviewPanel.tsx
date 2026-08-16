@@ -91,16 +91,20 @@ export function PreviewPanel({
       },
     ];
     if (style.logo) {
-      const okLogo = style.ec === "H" && style.logoScale <= 0.26;
+      const area = logoN > 0 ? (logoN * logoN) / (matrix.size * matrix.size) : 0;
+      const areaPct = Math.round(area * 100);
+      const okLogo = style.ec === "H" && area <= 0.25;
       list.push({
         label: "Merged logo",
         detail: okLogo
           ? logoN > 0
-            ? `Woven in as ${logoN}×${logoN} real modules, backed by level H`
+            ? `Woven in as ${logoN}×${logoN} modules — ${areaPct}% of the code${
+                area > 0.2 ? ", near the safe limit" : ", well within the safe limit"
+              }`
             : "Rasterising the mark into modules…"
           : style.ec !== "H"
             ? "Switch error correction to High first"
-            : "It covers too much of the code — shrink it",
+            : "It replaces too much of the code — shrink the merge size",
         pass: okLogo,
       });
     }
@@ -203,7 +207,7 @@ export function PreviewPanel({
         <div className={`relative mx-5 mt-3.5 flex items-center justify-center rounded-[12px] border-[1.5px] border-ink p-6 ${sub.cls}`}>
           {matrix ? (
             <div
-              key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logoThreshold}:${logoN}:${style.logo?.length ?? 0}`}
+              key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logoThreshold}:${style.logoEdge}:${logoN}:${printed.length}`}
               className="qr-pop qr-live w-full max-w-[300px]"
               dangerouslySetInnerHTML={{ __html: printed }}
             />

@@ -287,8 +287,15 @@ function Workbench() {
     matrix,
     style.logoScale,
     style.logoThreshold,
+    style.logoEdge === "dither",
     style.bg,
   );
+
+  /* how much of the code the merged mark currently replaces */
+  const mergePct =
+    matrix && logoN > 0
+      ? Math.round(((logoN * logoN) / (matrix.size * matrix.size)) * 100)
+      : null;
 
   /* autosave history (debounced) */
   useEffect(() => {
@@ -370,7 +377,7 @@ function Workbench() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Reveal className="space-y-6">
           <ContentForms type={type} setType={setType} forms={forms} patch={setForms} />
-          <StylePanel style={style} setStyle={setStyle} />
+          <StylePanel style={style} setStyle={setStyle} mergePct={mergePct} />
         </Reveal>
         <Reveal>
           <PreviewPanel

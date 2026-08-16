@@ -95,7 +95,7 @@ const FAQS = [
   },
   {
     q: "How does the logo merge work?",
-    a: "Your mark isn't layered on top — it's rasterised into the matrix, so its dark pixels become real dark modules and its light pixels become the field. Level H error correction is enforced because those centre modules replace data, and coverage above ~26% is flagged as a risk.",
+    a: "Your mark isn't layered on top — it's rasterised into the matrix, so its dark pixels become real dark modules and its light pixels become the field. The whole logo always fits (it's never cropped), and a dithering pass keeps gradients and thin strokes legible at QR resolution. Level H error correction is enforced because those centre modules replace data; the live readout shows the exact percentage replaced, and anything above the ~25% safe limit is flagged.",
   },
   {
     q: "Why does the app insist on a light background?",

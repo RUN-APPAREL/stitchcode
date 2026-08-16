@@ -34,10 +34,15 @@ export interface StyleState {
   cornerStyle: CornerStyle;
   /** uploaded mark, as a data URL */
   logo: string | null;
-  /** merged-logo region as a fraction of the code width */
+  /** merged-logo region as a fraction of the code width (0.1 – 0.5) */
   logoScale: number;
   /** luminance cutoff — below it, a pixel becomes a dark module */
   logoThreshold: number;
+  /**
+   * "dither" spreads quantisation error to neighbouring modules (halftone —
+   * keeps gradients and thin strokes legible); "crisp" is a hard 1-bit cut.
+   */
+  logoEdge: "dither" | "crisp";
   exportPx: number;
 }
 
@@ -49,8 +54,9 @@ export const DEFAULT_STYLE: StyleState = {
   dotStyle: "square",
   cornerStyle: "square",
   logo: null,
-  logoScale: 0.2,
+  logoScale: 0.34,
   logoThreshold: 0.5,
+  logoEdge: "dither",
   exportPx: 1024,
 };
 
@@ -68,9 +74,12 @@ const PRESETS: Array<{ name: string; fg: string; bg: string }> = [
 export function StylePanel({
   style,
   setStyle,
+  mergePct,
 }: {
   style: StyleState;
   setStyle: (fn: (s: StyleState) => StyleState) => void;
+  /** % of the code's modules the merged mark currently replaces, or null */
+  mergePct: number | null;
 }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -249,15 +258,16 @@ export function StylePanel({
               <div className="flex-1 space-y-3">
                 <SliderRow
                   label="Merge size"
+                  tip="How wide the woven region is. The whole mark always fits — it's never cropped. Up to half the code width stays within level H's recovery budget."
                   value={Math.round(style.logoScale * 100)}
                   min={10}
-                  max={30}
+                  max={50}
                   onChange={(v) => patch({ logoScale: v / 100 })}
                   format={(v) => `${v}%`}
                 />
                 <SliderRow
                   label="Ink threshold"
-                  tip="How dark a pixel must be to become a dark module. Lower values keep only the strongest ink — a sparser, more open merge."
+                  tip="The luminance midpoint: pixels darker than this become dark modules. With dithering on, it acts like a halftone's exposure — tune it until the mark reads clearly."
                   value={Math.round(style.logoThreshold * 100)}
                   min={15}
                   max={85}
@@ -265,6 +275,30 @@ export function StylePanel({
                   onChange={(v) => patch({ logoThreshold: v / 100 })}
                   format={(v) => `${v}%`}
                 />
+                <div>
+                  <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
+                    Edge style
+                    <Tip text="Dithered spreads each pixel's error to its neighbours — the halftone effect that keeps gradients, shadows and thin strokes legible at QR resolution. Crisp is a hard 1-bit cut." />
+                  </span>
+                  <Seg<"dither" | "crisp">
+                    value={style.logoEdge}
+                    onChange={(v) => patch({ logoEdge: v })}
+                    options={[
+                      { value: "dither", label: "Dithered" },
+                      { value: "crisp", label: "Crisp" },
+                    ]}
+                  />
+                </div>
+                {mergePct !== null && (
+                  <p
+                    className={`flex items-center gap-1.5 text-[11px] font-bold ${
+                      mergePct > 25 ? "text-danger" : mergePct > 20 ? "text-warn" : "text-ink-muted"
+                    }`}
+                  >
+                    {mergePct > 25 ? <AlertTriangle size={12} /> : null}
+                    Replaces ≈ {mergePct}% of the code's modules · level H restores ~30%
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -275,8 +309,9 @@ export function StylePanel({
           )}
           {!style.logo && (
             <p className="mt-2 text-[10.5px] font-medium leading-snug text-ink-muted">
-              Upload a mark and it's woven into the matrix — the logo becomes real modules, and
-              level H restores the data underneath. Bold, high-contrast marks merge best.
+              Upload a mark and it's woven into the matrix — the whole logo becomes real modules
+              (never cropped, never a sticker on top), and level H restores the data underneath.
+              Bold, high-contrast marks merge best; dithering keeps fine detail legible.
             </p>
           )}
         </div>
