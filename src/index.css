@@ -29,11 +29,11 @@
   --shadow-brutal-accent: 4px 4px 0 0 var(--t-accent);
 }
 
-/* Semantic tokens shared across every palette */
+/* Semantic tokens shared across every palette (tuned for ≥ 4.5:1 on light fields) */
 :root {
-  --t-ok: #178f5b;
-  --t-warn: #c97a06;
-  --t-danger: #d64541;
+  --t-ok: #0f7a4b;
+  --t-warn: #9a5b00;
+  --t-danger: #b33632;
 }
 
 /* ---------------------- 1 · Comelea Alpine (default) ---------------- */
@@ -165,6 +165,40 @@ body {
   height: auto;
 }
 
+/* Range sliders — themed, tactile thumbs */
+.qr-slider {
+  background: var(--t-surface2);
+  border: 1px solid var(--t-line);
+}
+.qr-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 999px;
+  background: var(--t-accent);
+  border: 2px solid var(--t-ink);
+  box-shadow: 2px 2px 0 0 var(--t-ink);
+  cursor: grab;
+  transition: transform 0.15s ease;
+}
+.qr-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+.qr-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(0.94);
+}
+.qr-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 999px;
+  background: var(--t-accent);
+  border: 2px solid var(--t-ink);
+  box-shadow: 2px 2px 0 0 var(--t-ink);
+  cursor: grab;
+}
+
 /* ------------------------------------------------------------------ */
 /* Ambient background layers                                           */
 /* ------------------------------------------------------------------ */
@@ -210,13 +244,6 @@ body {
 /* ------------------------------------------------------------------ */
 /* Motion keyframes                                                    */
 /* ------------------------------------------------------------------ */
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.animate-marquee {
-  animation: marquee 30s linear infinite;
-}
 @keyframes floaty {
   0%, 100% { transform: translateY(0) rotate(var(--fl-rot, 0deg)); }
   50% { transform: translateY(-12px) rotate(var(--fl-rot, 0deg)); }
@@ -265,3 +292,20 @@ body {
 .stagger.is-in > *:nth-child(6) { animation-delay: 0.44s; }
 .stagger.is-in > *:nth-child(7) { animation-delay: 0.52s; }
 .stagger.is-in > *:nth-child(8) { animation-delay: 0.6s; }
+
+/* Respect OS motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-floaty,
+  .qr-pop,
+  .pulse-dot,
+  .reveal,
+  .reveal.is-in,
+  .stagger > *,
+  .stagger.is-in > * {
+    animation: none;
+    opacity: 1;
+  }
+}

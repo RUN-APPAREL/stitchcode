@@ -37,7 +37,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed bottom-5 left-1/2 z-[90] flex w-[min(92vw,420px)] -translate-x-1/2 flex-col gap-2">
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed bottom-5 left-1/2 z-[90] flex w-[min(92vw,420px)] -translate-x-1/2 flex-col gap-2"
+      >
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
@@ -288,12 +292,13 @@ export function SliderRow({
       </div>
       <input
         type="range"
+        aria-label={label}
         min={min}
         max={max}
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[5px] w-full cursor-pointer appearance-none rounded-full bg-surface2 accent-[var(--t-accent)]"
+        className="qr-slider h-[6px] w-full cursor-pointer appearance-none rounded-full"
       />
     </div>
   );
@@ -430,7 +435,7 @@ export function SelectField<T extends string>({
         {tip && <Tip text={tip} />}
       </span>
       <RadixSelect.Root value={value} onValueChange={(v) => onChange(v as T)}>
-        <RadixSelect.Trigger className="flex w-full items-center justify-between gap-2 rounded-full border-[1.5px] border-ink bg-surface px-3.5 py-2 text-[12.5px] font-bold text-ink shadow-brutal-sm transition-shadow hover:shadow-brutal data-[state=open]:shadow-brutal">
+        <RadixSelect.Trigger aria-label={label} className="flex w-full items-center justify-between gap-2 rounded-full border-[1.5px] border-ink bg-surface px-3.5 py-2 text-[12.5px] font-bold text-ink shadow-brutal-sm transition-shadow hover:shadow-brutal data-[state=open]:shadow-brutal">
           <RadixSelect.Value />
           <RadixSelect.Icon>
             <ChevronDown size={14} className="text-ink-dim" />

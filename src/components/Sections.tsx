@@ -48,7 +48,10 @@ export function Checklist() {
           <h2 className="font-display text-[clamp(28px,4vw,44px)] font-black leading-[1.02] tracking-tight text-ink">
             Six rules that keep
             <br />
-            every code <span className="text-accent">scannable.</span>
+            every code{" "}
+            <span className="whitespace-nowrap bg-accent px-2 text-ink shadow-brutal-sm">
+              scannable.
+            </span>
           </h2>
         </div>
         <p className="max-w-[300px] text-[13.5px] font-semibold leading-relaxed text-ink-dim">

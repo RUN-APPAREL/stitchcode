@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import { QrCode, WifiOff, History, Trash2, RotateCcw, ArrowDown, ScanLine } from "lucide-react";
 import {
   THEMES,
@@ -30,6 +30,16 @@ interface HistoryItem {
 }
 const HISTORY_KEY = "qrsmith:history";
 
+function timeAgo(ts: number): string {
+  const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
 function loadHistory(): HistoryItem[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
@@ -50,6 +60,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <MotionConfig reducedMotion="user">
       <div className="relative min-h-screen bg-bg text-ink">
         {/* ambient layers */}
         <div className="bg-blueprint pointer-events-none fixed inset-0 z-0" aria-hidden />
@@ -69,6 +80,7 @@ export default function App() {
           <Footer />
         </div>
       </div>
+      </MotionConfig>
     </ToastProvider>
   );
 }
@@ -393,7 +405,7 @@ function Workbench() {
                   </button>
                   <div className="flex items-center justify-between border-t-[1.5px] border-line bg-surface2/70 px-2.5 py-1.5">
                     <span className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ink-dim">
-                      {item.type} · v
+                      {item.type} · {timeAgo(item.ts)}
                     </span>
                     <button
                       onClick={() => removeItem(item.id)}
@@ -441,8 +453,12 @@ function Footer() {
           <span className="text-accent"> Nothing you create ever leaves this device.</span>
         </p>
         <div className="flex gap-2">
-          <Tele tone="ok">✓ no trackers</Tele>
-          <Tele tone="ok">✓ no cloud</Tele>
+          <span className="inline-flex items-center gap-1.5 rounded-[5px] border border-bg/35 px-2 py-[3px] font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-bg/85">
+            ✓ no trackers
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-[5px] border border-bg/35 px-2 py-[3px] font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-bg/85">
+            ✓ no cloud
+          </span>
         </div>
       </div>
     </footer>
