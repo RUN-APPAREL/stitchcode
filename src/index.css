@@ -142,7 +142,7 @@ body {
   color: var(--t-accent-ink);
 }
 :focus-visible {
-  outline: 2px solid var(--t-accent);
+  outline: 2px solid var(--t-ink);
   outline-offset: 2px;
 }
 ::-webkit-scrollbar {

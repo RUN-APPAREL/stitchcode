@@ -213,7 +213,7 @@ export function PreviewPanel({
             />
           ) : (
             <div className="flex aspect-square w-full max-w-[300px] flex-col items-center justify-center gap-3 rounded-[10px] border-[1.5px] border-dashed border-ink/30 bg-surface/70 text-center backdrop-blur-[1px]">
-              <ScanLine size={28} className="text-accent" />
+              <ScanLine size={28} className="text-accent2" />
               <p className="px-8 text-[13px] font-bold text-ink-dim">
                 {payload
                   ? "This content is too long for the chosen error-correction level — shorten it, or pick a lower level under Style."

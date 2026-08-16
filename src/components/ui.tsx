@@ -227,15 +227,16 @@ export function Seg<T extends string>({
   return (
     <div
       className={`inline-flex w-full rounded-full border-[1.5px] border-ink bg-surface2 p-1 ${className}`}
-      role="tablist"
+      role="radiogroup"
     >
       {options.map((o) => {
         const active = o.value === value;
         return (
           <button
             key={o.value}
-            role="tab"
-            aria-selected={active}
+            type="button"
+            role="radio"
+            aria-checked={active}
             title={o.title}
             onClick={() => onChange(o.value)}
             className={`relative flex-1 rounded-full px-2 py-1.5 text-[11.5px] font-extrabold uppercase tracking-[0.05em] transition-colors ${
@@ -338,9 +339,16 @@ export function ColorField({
           value={text}
           onChange={(e) => {
             setText(e.target.value);
-            if (isValidHex(e.target.value)) onChange(e.target.value);
+            if (isValidHex(e.target.value)) {
+              /* canonicalise to #rrggbb so SVG fill / canvas fillStyle stay valid */
+              const h = e.target.value.replace(/^#/, "").toLowerCase();
+              onChange(`#${h.length === 3 ? h.split("").map((c) => c + c).join("") : h}`);
+            }
           }}
+          onBlur={() => setText(value)}
           spellCheck={false}
+          aria-label={`${label} hex value`}
+          placeholder="#1c1c1a"
           className="w-full bg-transparent font-mono text-[12px] font-bold uppercase text-ink outline-none"
         />
       </div>

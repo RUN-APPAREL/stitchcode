@@ -44,7 +44,14 @@ function timeAgo(ts: number): string {
 function loadHistory(): HistoryItem[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? (JSON.parse(raw) as HistoryItem[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    /* drop malformed entries so corrupted storage can't crash the render */
+    return parsed.filter(
+      (x): x is HistoryItem =>
+        !!x && typeof x === "object" && typeof x.payload === "string" && !!x.style && !!x.forms,
+    );
   } catch {
     return [];
   }
@@ -331,7 +338,8 @@ function Workbench() {
   const restore = (item: HistoryItem) => {
     setType(item.type);
     setForms(item.forms);
-    setStyle(item.style);
+    /* merge with defaults so older saved items lacking new fields stay valid */
+    setStyle({ ...DEFAULT_STYLE, ...item.style });
     toast("success", "Build restored from history");
     document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" });
   };
@@ -396,7 +404,7 @@ function Workbench() {
         <Reveal className="mt-10">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h3 className="flex items-center gap-2 font-display text-[17px] font-black tracking-tight text-ink">
-              <History size={16} className="text-accent" /> Recent builds
+              <History size={16} className="text-accent2" /> Recent builds
               <span className="rounded-full border border-line bg-surface2 px-2 py-0.5 font-mono text-[10px] font-bold text-ink-dim">
                 {history.length}
               </span>
