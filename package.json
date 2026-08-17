@@ -39,7 +39,7 @@
     "@types/uuid": "^9.0.7",
     "@vitejs/plugin-react": "^6.0.5",
     "tailwindcss": "^4.1.7",
-    "typescript": "^5.7.0",
+    "typescript": "^7.0.2",
     "vite": "^6.3.5"
   }
 }
