@@ -48,7 +48,7 @@ export function useLogoGrid(
       setState(IDLE);
       return;
     }
-    const n = logoRegionModules(matrix.size, p.scale, p.mode === "stitch" ? 1 : 0.5);
+    const n = logoRegionModules(matrix.size, p.scale);
     const res = p.mode === "stitch" ? 3 : 1;
     logoToGrid(logo, n, p.threshold, p.bg, p.edge, {
       res,

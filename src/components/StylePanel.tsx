@@ -343,34 +343,32 @@ export function StylePanel({
                   label="Image size"
                   tip={
                     style.logoMode === "stitch"
-                      ? "How wide the image runs under the code. Stitch redraws every module on top, so you can go full-bleed (100%) for a photo-QR look. The mark is never cropped."
-                      : "How wide the logo region is. The whole mark always fits — it's never cropped. Inlay replaces data, so it's capped at half the code width for level H to restore."
+                      ? "How wide the image runs under the code — right up to full-bleed (100%) for a photo-QR look, since Stitch redraws every module on top. The mark is never cropped."
+                      : "How wide the logo region is — the mark is never cropped. Inlay replaces real data, so past ~50% there's more than level H can restore: the scan checks and the decode test will call it out."
                   }
                   value={Math.round(style.logoScale * 100)}
                   min={10}
-                  max={style.logoMode === "stitch" ? 100 : 50}
+                  max={100}
                   onChange={(v) => patch({ logoScale: v / 100 })}
                   format={(v) => `${v}%`}
                 />
-                {style.logoMode === "stitch" && (
-                  <div className="-mt-1 flex items-center gap-1.5">
-                    {[25, 50, 75, 100].map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => patch({ logoScale: p / 100 })}
-                        aria-pressed={Math.round(style.logoScale * 100) === p}
-                        className={`rounded-full border-[1.5px] px-2.5 py-0.5 font-mono text-[9.5px] font-bold transition-all ${
-                          Math.round(style.logoScale * 100) === p
-                            ? "border-ink bg-ink text-surface shadow-brutal-accent"
-                            : "border-line text-ink-muted hover:border-ink hover:text-ink"
-                        }`}
-                      >
-                        {p === 100 ? "full" : `${p}%`}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="-mt-1 flex items-center gap-1.5">
+                  {[25, 50, 75, 100].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => patch({ logoScale: p / 100 })}
+                      aria-pressed={Math.round(style.logoScale * 100) === p}
+                      className={`rounded-full border-[1.5px] px-2.5 py-0.5 font-mono text-[9.5px] font-bold transition-all ${
+                        Math.round(style.logoScale * 100) === p
+                          ? "border-ink bg-ink text-surface shadow-brutal-accent"
+                          : "border-line text-ink-muted hover:border-ink hover:text-ink"
+                      }`}
+                    >
+                      {p === 100 ? "full" : `${p}%`}
+                    </button>
+                  ))}
+                </div>
                 <SliderRow
                   label="Ink threshold"
                   tip="The luminance midpoint: pixels darker than this become dark. With dithering on it acts like a halftone's exposure — tune it until the mark reads clearly."

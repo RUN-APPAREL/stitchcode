@@ -42,17 +42,15 @@ export interface QRRenderOptions {
 /**
  * Width (in modules) of the logo region for a given fraction of the code.
  *
- * `maxFraction` encodes the scannability ceiling for each technique:
- * - inlay replaces real data, so it's capped at half the code width (≤ 25% of
- *   area — the industry-safe ceiling level H can recover);
- * - stitch redraws the complete code on top, so it may run full-bleed (1.0),
- *   producing a "photo QR" where the halftone fills the whole symbol.
+ * The slider runs the full 10–100% range for both techniques — there is no
+ * hard clamp. Scannability is policed by live feedback instead: the
+ * "% replaced" readout, the scan-safety checks, and the real decode test all
+ * flag an inlay that erases more data than level H can restore. Regions that
+ * aren't full-bleed are nudged to an odd width so they sit dead-centre.
  */
-export function logoRegionModules(codeSize: number, scale: number, maxFraction = 0.5): number {
-  if (maxFraction >= 1) return Math.max(5, Math.min(Math.round(codeSize * scale), codeSize));
-  let n = Math.round(codeSize * scale);
-  n = Math.max(5, Math.min(n, Math.floor(codeSize * maxFraction)));
-  return n % 2 === 0 ? n + 1 : n;
+export function logoRegionModules(codeSize: number, scale: number): number {
+  const n = Math.max(5, Math.min(Math.round(codeSize * scale), codeSize));
+  return n >= codeSize ? n : n % 2 === 0 ? n + 1 : n;
 }
 
 /** How the mark's tones are reduced to modules. */
