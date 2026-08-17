@@ -109,7 +109,7 @@ const FAQS = [
   },
   {
     q: "How does my picture get into the code?",
-    a: "Two ways, and it's never just pasted on top. 'Behind the code' turns your picture into a soft pattern and redraws the whole code over it, so nothing important is ever covered — it's safe at any size, even filling the entire code. 'Into the code' lets your picture take the place of some of the code's dots, which looks bolder, so keep it under about a quarter of the code. Either way, the app scans your code back with a real decoder as you build, so you always know it works before you print.",
+    a: "Two ways, and it's never just pasted on top. 'Behind the code' turns your picture into a soft pattern, then redraws the whole code over it — every dark dot and every light dot — so your picture peeks through the gaps of the code's own lattice and nothing important is ever covered. It's safe at any size, even filling the entire code. 'Into the code' lets your picture take the place of some of the code's dots, which looks bolder, so keep it under about a quarter of the code. Either way, the app scans your code back with a real decoder as you build, so you always know it works before you print.",
   },
   {
     q: "Why does the app want a light background?",

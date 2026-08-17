@@ -72,7 +72,7 @@ export const DEFAULT_STYLE: StyleState = {
   logoMode: "stitch",
   logoScale: 0.34,
   logoThreshold: 0.5,
-  logoBrightness: 1.3,
+  logoBrightness: 1.5,
   logoContrast: 1.2,
   logoFade: 0.25,
   logoEdge: "dither",

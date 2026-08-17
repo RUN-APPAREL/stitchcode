@@ -378,8 +378,12 @@ function finderSVG(ox: number, oy: number, o: QRRenderOptions): string {
  *
  * STITCH — the mark is dithered at `logoRes`× the module grid and laid down
  * first; then the *complete* code is repainted over it: functional patterns
- * as solid squares, data modules as centred dots. Nothing is erased, so the
- * code stays scannable at any error-correction level.
+ * as solid squares, and every data module as a centred dot in its own
+ * polarity — dark modules in the ink colour, light modules in the field
+ * colour. The picture peeks through the gaps of this two-colour lattice,
+ * which maximises local contrast in both directions (the same "shrunken
+ * module" trick that keeps dithered QR art scannable). Nothing is erased, so
+ * the code stays readable at any error-correction level.
  */
 function mergedLogoSVG(
   m: QRMatrix,
@@ -455,14 +459,19 @@ function stitchLogoSVG(
         out += `<rect x="${X}" y="${Y}" width="1" height="1" fill="${
           m.get(x, y) ? o.fg : o.bg
         }"/>`;
-      } else if (m.get(x, y)) {
-        /* data modules as centred dots — far more legible than 1px specks */
+      } else {
+        /* data modules as centred dots in their own polarity — dark ink dots
+           and light field dots — so the code reads as a dense lattice and the
+           picture only shows in the gaps */
+        const dark = m.get(x, y);
+        const fill = dark ? o.fg : o.bg;
+        if (!dark && o.bg === "transparent") continue; /* nothing to draw */
         if (o.dotStyle === "dots") {
-          out += `<circle cx="${f(X + 0.5)}" cy="${f(Y + 0.5)}" r="0.27" fill="${o.fg}"/>`;
+          out += `<circle cx="${f(X + 0.5)}" cy="${f(Y + 0.5)}" r="0.27" fill="${fill}"/>`;
         } else if (o.dotStyle === "rounded") {
-          out += `<rect x="${f(X + 0.21)}" y="${f(Y + 0.21)}" width="0.58" height="0.58" rx="0.17" fill="${o.fg}"/>`;
+          out += `<rect x="${f(X + 0.21)}" y="${f(Y + 0.21)}" width="0.58" height="0.58" rx="0.17" fill="${fill}"/>`;
         } else {
-          out += `<rect x="${f(X + 0.19)}" y="${f(Y + 0.19)}" width="0.62" height="0.62" fill="${o.fg}"/>`;
+          out += `<rect x="${f(X + 0.19)}" y="${f(Y + 0.19)}" width="0.62" height="0.62" fill="${fill}"/>`;
         }
       }
     }
@@ -625,8 +634,11 @@ export async function renderCanvas(
             if (isFunctional(x, y, m.size, centers)) {
               ctx.fillStyle = m.get(x, y) ? o.fg : o.bg;
               ctx.fillRect(X, Y, s + 0.5, s + 0.5);
-            } else if (m.get(x, y)) {
-              ctx.fillStyle = o.fg;
+            } else {
+              /* dark ink dots AND light field dots — the two-colour lattice */
+              const dark = m.get(x, y);
+              if (!dark && o.bg === "transparent") continue;
+              ctx.fillStyle = dark ? o.fg : o.bg;
               if (o.dotStyle === "dots") {
                 ctx.beginPath();
                 ctx.arc(X + s / 2, Y + s / 2, s * 0.27, 0, Math.PI * 2);
