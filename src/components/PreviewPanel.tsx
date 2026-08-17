@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import jsQR from "jsqr";
+import { decodeQR } from "../lib/decode";
 import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge, Printer, Sparkles, Share2 } from "lucide-react";
 import type { QRMatrix } from "../lib/qr";
 import {
@@ -71,12 +71,12 @@ export function PreviewPanel({
         const canvas = await renderCanvas(matrix, renderOpts(style.bg), 768);
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
-        const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const t0 = performance.now();
-        const res = jsQR(data, width, height);
+        const decoded = await decodeQR(imageData);
         if (decodeReq.current !== id) return;
         setDecode(
-          res && res.data === payload
+          decoded === payload
             ? { status: "pass", ms: Math.max(1, Math.round(performance.now() - t0)) }
             : { status: "fail" },
         );

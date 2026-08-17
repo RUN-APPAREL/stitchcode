@@ -10,7 +10,8 @@ import {
 } from "./lib/themes";
 import type { QRType, FormState } from "./lib/payloads";
 import { DEFAULT_FORMS, buildPayload, summarize } from "./lib/payloads";
-import { createMatrix, renderSVG, type QRMatrix } from "./lib/qr";
+import { createMatrix, renderSVG, logoToGrid, logoRegionModules, type QRMatrix } from "./lib/qr";
+import { SAMPLE_LOGO_URL } from "./lib/sample";
 import { ToastProvider, Reveal, Pill, Tele, Tip, Decode, useToast } from "./components/ui";
 import { ContentForms } from "./components/ContentForms";
 import { StylePanel, DEFAULT_STYLE, toRenderOptions, type StyleState } from "./components/StylePanel";
@@ -39,6 +40,50 @@ function timeAgo(ts: number): string {
   const h = Math.round(m / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
+}
+
+/**
+ * Renders a saved build exactly as it was made — including the merged logo —
+ * by re-rasterising the stored mark. Keeps thumbnails faithful to the studio.
+ */
+function HistoryThumb({ item }: { item: HistoryItem }) {
+  const [thumb, setThumb] = useState("");
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const m = createMatrix(item.payload, item.style.ec);
+        const st = item.style;
+        let opts = { ...toRenderOptions(st, null, 0), margin: 2 };
+        if (st.logo) {
+          const n = logoRegionModules(m.size, st.logoScale);
+          const res = st.logoMode === "stitch" ? 3 : 1;
+          const grid = await logoToGrid(st.logo, n, st.logoThreshold, st.bg, st.logoEdge, {
+            res,
+            brightness: st.logoBrightness,
+            contrast: st.logoContrast,
+            fade: st.logoFade,
+          });
+          if (!live) return;
+          opts = {
+            ...opts,
+            logoGrid: grid,
+            logoN: n,
+            logoRes: res,
+            logoMode: st.logoMode,
+            logoScale: st.logoScale,
+          };
+        }
+        setThumb(renderSVG(m, opts, 96));
+      } catch {
+        setThumb("");
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [item]);
+  return <div className="qr-live" dangerouslySetInnerHTML={{ __html: thumb }} />;
 }
 
 function loadHistory(): HistoryItem[] {
@@ -211,33 +256,71 @@ function Stat({ n, label, delay }: { n: number; label: string; delay: number }) 
   );
 }
 
+/*
+ * Opener specimens — rendered through the same pipeline as the studio so the
+ * hero shows the actual signature effect: a stitched two-colour weave.
+ */
 const SPECIMEN_PRESETS = [
-  { id: "link", label: "Link", payload: "https://stitchcode.run" },
-  { id: "wifi", label: "Wi-Fi", payload: "WIFI:T:WPA;S:Studio-Guest;P:hello123;;" },
-  {
-    id: "card",
-    label: "Contact",
-    payload: "BEGIN:VCARD\nVERSION:3.0\nN:Smith;Ada;;;\nFN:Ada Smith\nORG:Stitchcode\nEND:VCARD",
-  },
-] as const;
+  { id: "plain", label: "Plain", payload: "https://stitchcode.run", scale: 0, on: false },
+  { id: "woven", label: "Woven", payload: "https://stitchcode.run", scale: 0.5, on: true },
+  { id: "full", label: "Full", payload: "https://stitchcode.run", scale: 1, on: true },
+];
+
+/**
+ * Renders a specimen through the real pipeline — optionally with the bundled
+ * mark stitched in — so the opener demonstrates the product's signature look.
+ */
+function useStitchedSVG(payload: string, scale: number, stitched: boolean, px = 420): string {
+  const [svg, setSvg] = useState("");
+  useEffect(() => {
+    let live = true;
+    setSvg("");
+    (async () => {
+      try {
+        const m = createMatrix(payload, "H");
+        const base = toRenderOptions(DEFAULT_STYLE, null, 0, "transparent");
+        if (!stitched) {
+          setSvg(renderSVG(m, base, px));
+          return;
+        }
+        const n = logoRegionModules(m.size, scale);
+        const grid = await logoToGrid(SAMPLE_LOGO_URL, n, 0.5, "#ffffff", "dither", {
+          res: 3,
+          brightness: 1.6,
+          contrast: 1.2,
+          fade: 0.15,
+        });
+        if (!live) return;
+        setSvg(
+          renderSVG(
+            m,
+            { ...base, logoGrid: grid, logoN: n, logoRes: 3, logoMode: "stitch", logoScale: scale },
+            px,
+          ),
+        );
+      } catch {
+        /* specimen stays empty on failure */
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [payload, scale, stitched, px]);
+  return svg;
+}
 
 function Opener() {
-  const [spec, setSpec] = useState<string>("link");
+  const [spec, setSpec] = useState<string>("woven");
   const cardRef = useRef<HTMLDivElement>(null);
+  const preset = SPECIMEN_PRESETS.find((p) => p.id === spec) ?? SPECIMEN_PRESETS[1];
 
-  const sample = useMemo(() => {
-    const preset = SPECIMEN_PRESETS.find((p) => p.id === spec) ?? SPECIMEN_PRESETS[0];
-    const m = createMatrix(preset.payload, "H");
-    return renderSVG(m, toRenderOptions(DEFAULT_STYLE, null, 0, "transparent"), 420);
-  }, [spec]);
-
-  const watermark = useMemo(() => {
-    const m = createMatrix(
-      "https://stitchcode.run/field-manual?batch=2026&press=offset&substrate=kraft",
-      "H",
-    );
-    return renderSVG(m, toRenderOptions(DEFAULT_STYLE, null, 0, "transparent"), 560);
-  }, []);
+  const sample = useStitchedSVG(preset.payload, preset.scale, preset.on);
+  const watermark = useStitchedSVG(
+    "https://stitchcode.run/field-manual?batch=2026&press=offset&substrate=kraft",
+    0.8,
+    true,
+    560,
+  );
 
   /* tactile pointer-tilt on the specimen card */
   useEffect(() => {
@@ -563,13 +646,6 @@ function Workbench() {
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {history.map((item) => {
-              let thumb = "";
-              try {
-                const m = createMatrix(item.payload, item.style.ec);
-                thumb = renderSVG(m, { ...toRenderOptions(item.style, null, 0), margin: 2 }, 96);
-              } catch {
-                thumb = "";
-              }
               return (
                 <div
                   key={item.id}
@@ -581,7 +657,7 @@ function Workbench() {
                     className="block w-full p-2.5 text-left"
                     style={{ background: item.style.bg }}
                   >
-                    <div className="qr-live" dangerouslySetInnerHTML={{ __html: thumb }} />
+                    <HistoryThumb item={item} />
                   </button>
                   <div className="flex items-center justify-between border-t-[1.5px] border-line bg-surface2/70 px-2.5 py-1.5">
                     <span className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ink-dim">
