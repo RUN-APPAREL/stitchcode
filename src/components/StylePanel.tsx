@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ArrowDownUp, Upload, Trash2, AlertTriangle, Palette, Sparkles } from "lucide-react";
 import type { ECLevel, DotStyle, CornerStyle, QRRenderOptions } from "../lib/qr";
 import { EC_INFO } from "../lib/qr";
@@ -90,6 +90,7 @@ export function StylePanel({
 }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
   const patch = (p: Partial<StyleState>) => setStyle((s) => ({ ...s, ...p }));
 
   const applyLogo = (logo: string, doneMsg: string) => {
@@ -233,7 +234,23 @@ export function StylePanel({
         </div>
 
         {/* merged logo */}
-        <div className="mt-5 rounded-[12px] border-[1.5px] border-dashed border-line bg-surface2/50 p-3.5">
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            onLogoFile(e.dataTransfer.files?.[0]);
+          }}
+          className={`mt-5 rounded-[12px] border-[1.5px] border-dashed p-3.5 transition-all duration-200 ${
+            dragging
+              ? "scale-[1.015] border-accent2 bg-accent2/10 shadow-brutal-sm"
+              : "border-line bg-surface2/50"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
               Merged logo
@@ -322,9 +339,9 @@ export function StylePanel({
           )}
           {!style.logo && (
             <p className="mt-2 text-[10.5px] font-medium leading-snug text-ink-muted">
-              Upload a mark and it's woven into the matrix — the whole logo becomes real modules
-              (never cropped, never a sticker on top), and level H restores the data underneath.
-              Bold, high-contrast marks merge best; dithering keeps fine detail legible.
+              Upload a mark — or drop it right here — and it's woven into the matrix. The whole
+              logo becomes real modules (never cropped, never a sticker on top), and level H
+              restores the data underneath. Bold, high-contrast marks merge best.
             </p>
           )}
         </div>

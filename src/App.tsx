@@ -11,7 +11,7 @@ import {
 import type { QRType, FormState } from "./lib/payloads";
 import { DEFAULT_FORMS, buildPayload, summarize } from "./lib/payloads";
 import { createMatrix, renderSVG, type QRMatrix } from "./lib/qr";
-import { ToastProvider, Reveal, Pill, Tele, Tip, useToast } from "./components/ui";
+import { ToastProvider, Reveal, Pill, Tele, Tip, Decode, useToast } from "./components/ui";
 import { ContentForms } from "./components/ContentForms";
 import { StylePanel, DEFAULT_STYLE, toRenderOptions, type StyleState } from "./components/StylePanel";
 import { PreviewPanel } from "./components/PreviewPanel";
@@ -97,8 +97,19 @@ export default function App() {
 /* Header with quick-theme selector                                    */
 /* ------------------------------------------------------------------ */
 function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => void }) {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const h = document.documentElement;
+      const max = h.scrollHeight - h.clientHeight;
+      setProgress(max > 0 ? h.scrollTop / max : 0);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
-    <header className="sticky top-0 z-50 border-b-[1.5px] border-ink bg-bg/85 backdrop-blur-md">
+    <header className="relative sticky top-0 z-50 border-b-[1.5px] border-ink bg-bg/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3 sm:px-8">
         <a href="#top" className="flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border-[1.5px] border-ink bg-ink text-bg shadow-brutal-accent">
@@ -121,7 +132,7 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
             <a
               key={href}
               href={href}
-              className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-ink-dim transition-colors hover:text-accent"
+              className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-ink-dim transition-colors hover:text-accent2"
             >
               {label}
             </a>
@@ -159,6 +170,11 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
           </div>
         </div>
       </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-[-1.5px] h-[2.5px] origin-left bg-accent2"
+        style={{ transform: `scaleX(${progress})` }}
+      />
     </header>
   );
 }
@@ -474,7 +490,7 @@ function Workbench() {
         <div>
           <Tele tone="accent" className="mb-3">the workbench</Tele>
           <h2 className="font-display text-[clamp(26px,3.6vw,40px)] font-black leading-[1.02] tracking-tight text-ink">
-            Compose, style, proof.
+            <Decode text="Compose, style, proof." />
           </h2>
         </div>
         <p className="max-w-[300px] text-[13px] font-semibold leading-relaxed text-ink-dim">
@@ -575,9 +591,16 @@ function Workbench() {
 /* ------------------------------------------------------------------ */
 /* Footer                                                              */
 /* ------------------------------------------------------------------ */
+const MODULE_STRIP = Array.from({ length: 120 }, (_, i) => ((i * 2654435761) % 97) < 45);
+
 function Footer() {
   return (
     <footer className="border-t-[1.5px] border-ink bg-ink text-bg">
+      <div aria-hidden className="flex h-3 items-stretch gap-[3px] overflow-hidden border-b border-bg/15 px-3 py-[3px]">
+        {MODULE_STRIP.map((b, i) => (
+          <span key={i} className={`w-[6px] shrink-0 ${b ? "bg-bg/60" : ""}`} />
+        ))}
+      </div>
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-5 py-10 sm:px-8 md:flex-row md:items-center">
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-[8px] border-[1.5px] border-bg/40 bg-bg text-ink">

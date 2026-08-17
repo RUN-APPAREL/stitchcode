@@ -211,6 +211,78 @@ export function Tele({
 }
 
 /* ------------------------------------------------------------------ */
+/* Decode title — glyphs resolve into the real text when scrolled in   */
+/* ------------------------------------------------------------------ */
+const DECODE_GLYPHS = "█▓▒░▚▞▟#*+x=";
+const scramble = (s: string) =>
+  s
+    .split("")
+    .map((ch, i) => (ch === " " ? " " : DECODE_GLYPHS[(i * 7 + 3) % DECODE_GLYPHS.length]))
+    .join("");
+
+export function Decode({
+  text,
+  delay = 0,
+  className = "",
+}: {
+  text: string;
+  delay?: number;
+  className?: string;
+}) {
+  const reduced =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [out, setOut] = useState(() => (reduced ? text : scramble(text)));
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (reduced) {
+      setOut(text);
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        const start = performance.now() + delay;
+        const tick = (now: number) => {
+          const t = Math.max(0, now - start);
+          const settled = Math.floor(t / 42);
+          if (settled >= text.length) {
+            setOut(text);
+            return;
+          }
+          let s = "";
+          const phase = Math.floor(t / 50) * 3;
+          for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            s += ch === " " ? " " : i < settled ? ch : DECODE_GLYPHS[(i * 7 + phase) % DECODE_GLYPHS.length];
+          }
+          setOut(s);
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      },
+      { threshold: 0.5 },
+    );
+    io.observe(el);
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+    };
+  }, [text, delay, reduced]);
+
+  return (
+    <span ref={ref} className={className} aria-label={text}>
+      <span aria-hidden="true">{out}</span>
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Segmented control                                                   */
 /* ------------------------------------------------------------------ */
 export function Seg<T extends string>({

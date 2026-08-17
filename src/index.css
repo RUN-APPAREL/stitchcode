@@ -298,6 +298,13 @@ body {
 .pulse-dot {
   animation: pulse-dot 1.8s ease-in-out infinite;
 }
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 26s linear infinite;
+  transform-origin: 50% 50%;
+}
 /* Periodic scan sweep across the live proof */
 @keyframes scan-sweep {
   0% { top: -20%; opacity: 0; }
@@ -355,8 +362,10 @@ body {
     scroll-behavior: auto;
   }
   .animate-floaty,
+  .animate-spin-slow,
   .qr-pop,
   .pulse-dot,
+  .scan-sweep::after,
   .scan-sweep::after,
   .reveal,
   .reveal.is-in,

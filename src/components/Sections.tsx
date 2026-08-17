@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, ShieldCheck, Ruler, Contrast, Aperture, Printer, BookOpen } from "lucide-react";
-import { Reveal, Tele } from "./ui";
+import { Reveal, Tele, Decode } from "./ui";
 
 /* ------------------------------------------------------------------ */
 /* Field manual — numbered print rules                                 */
@@ -54,12 +54,26 @@ export function Checklist() {
             </span>
           </h2>
         </div>
+        <svg
+          className="hidden h-24 w-24 shrink-0 animate-spin-slow text-accent2 lg:block"
+          viewBox="0 0 100 100"
+          aria-hidden
+        >
+          <defs>
+            <path id="stamp-arc" d="M 50,50 m -36,0 a 36,36 0 1,1 72,0 a 36,36 0 1,1 -72,0" />
+          </defs>
+          <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 3.5" />
+          <text fontSize="8.4" fontWeight="700" letterSpacing="1.7" fill="currentColor" className="font-mono">
+            <textPath href="#stamp-arc">SPEC-SAFE · LOCAL-FIRST · PRINT-READY ·</textPath>
+          </text>
+          <rect x="45.5" y="45.5" width="9" height="9" fill="currentColor" transform="rotate(45 50 50)" />
+        </svg>
         <p className="max-w-[300px] text-[13.5px] font-semibold leading-relaxed text-ink-dim">
           Distilled from the print standard and a decade of failed labels — the same checks QRsmith runs live while you build.
         </p>
       </Reveal>
 
-      <Reveal stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Reveal stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:pb-8 [&>*:nth-child(even)]:lg:mt-8">
         {RULES.map((r, i) => (
           <article
             key={r.title}
@@ -114,7 +128,7 @@ export function FAQ() {
       <Reveal className="mb-8 text-center">
         <Tele tone="accent" className="mb-3">straight answers</Tele>
         <h2 className="font-display text-[clamp(26px,3.4vw,38px)] font-black tracking-tight text-ink">
-          Before you ask the internet.
+          <Decode text="Before you ask the internet." />
         </h2>
       </Reveal>
       <Reveal stagger className="space-y-3">
