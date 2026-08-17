@@ -326,13 +326,7 @@ export function StylePanel({
                   </span>
                   <Seg<"stitch" | "inlay">
                     value={style.logoMode}
-                    onChange={(v) =>
-                      patch(
-                        v === "inlay"
-                          ? { logoMode: v, logoScale: Math.min(style.logoScale, 0.5) }
-                          : { logoMode: v },
-                      )
-                    }
+                    onChange={(v) => patch({ logoMode: v })}
                     options={[
                       { value: "stitch", label: "Stitch" },
                       { value: "inlay", label: "Inlay" },
