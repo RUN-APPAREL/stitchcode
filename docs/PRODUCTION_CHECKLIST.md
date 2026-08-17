@@ -7,28 +7,37 @@ Everything below is already wired — this is the *verification* pass.
 
 ## Phase 1 · Before the first push
 
+The canonical handle is **`run-stitchcode/stitchcode`** — every badge, URL,
+`docker run` command, CODEOWNERS entry and wiki link already points at it.
+
 ```mermaid
 flowchart LR
-  A["Search & replace<br/>OWNER → real handle"] --> B["git init · first commit"]
-  B --> C["Push to GitHub"]
-  C --> D["Settings → Pages<br/>Source: GitHub Actions"]
-  D --> E["Create the wiki once,<br/>then push wiki/*.md"]
+  A["git init · first commit"] --> B["Push to GitHub"]
+  B --> C["Settings → Pages<br/>Source: GitHub Actions"]
+  C --> D["make wiki-init<br/>(pushes wiki/*.md)"]
+  D --> E["make release<br/>(tags v1.0.0)"]
   style A fill:#fff6f0,stroke:#c22e12,stroke-width:2px
   style E fill:#eaf6ee,stroke:#132a22,stroke-width:2px
 ```
 
-- [ ] Replace every `OWNER` with the real GitHub handle
-      (badges, URLs, `docker run`, CODEOWNERS, wiki links)
-- [ ] `.gitignore`, `LICENSE`, `README`, `CHANGELOG` present
+- [x] Every reference uses the real handle `run-stitchcode`
+- [x] `.gitignore`, `LICENSE`, `README`, `CHANGELOG` present
 - [ ] First push triggers the **CI** workflow → both Node jobs pass
-- [ ] Pages source switched to **GitHub Actions** → site goes live
-- [ ] Wiki initialised on GitHub, then `wiki/*.md` pushed to `stitchcode.wiki.git`
+- [ ] Pages source switched to **GitHub Actions** → site goes live at
+      `run-stitchcode.github.io/stitchcode`
+- [ ] Wiki initialised (one-time: create any wiki page on GitHub), then
+      `make wiki-init` pushes `wiki/*.md` to `stitchcode.wiki.git`
+
+> **Forking under a different name?** One command re-points everything:
+> ```bash
+> grep -rl "run-stitchcode" . --exclude-dir=node_modules | xargs sed -i "s/run-stitchcode/YOUR-HANDLE/g"
+> ```
 
 ## Phase 2 · First release
 
-- [ ] `git tag v1.0.0 && git push --tags`
+- [ ] `make release` — tags `v1.0.0`, pushes the tag, and the robots take over
 - [ ] Release workflow publishes a **zip** (portable, relative-base) ✔
-- [ ] Docker workflow publishes **ghcr.io/OWNER/stitchcode:1.0.0** ✔
+- [ ] Docker workflow publishes **ghcr.io/run-stitchcode/stitchcode:1.0.0** ✔
 - [ ] `CHANGELOG.md` already lists 1.0.0 (it does)
 
 ## Phase 3 · Smoke-test the live studio

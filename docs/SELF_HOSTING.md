@@ -61,7 +61,7 @@ One switch turns it on:
 | Pro | Con |
 |---|---|
 | Free forever | Public repo = public site |
-| Updates itself on every push | `OWNER.github.io/stitchcode` URL |
+| Updates itself on every push | `run-stitchcode.github.io/stitchcode` URL |
 | No servers to babysit | (custom domains supported) |
 
 ---
@@ -72,7 +72,7 @@ A ready image is published to GitHub Packages on every release.
 
 ```bash
 # pull & run — the whole studio on port 8080
-docker run -d -p 8080:80 --name stitchcode ghcr.io/OWNER/stitchcode
+docker run -d -p 8080:80 --name stitchcode ghcr.io/run-stitchcode/stitchcode
 
 # open http://localhost:8080
 ```
@@ -139,5 +139,6 @@ computer keeps its own.
  □ refresh → history is still there
 ```
 
-If any box stays empty, the [wiki troubleshooting page](../wiki/Troubleshooting.md)
+If any box stays empty, the
+[wiki troubleshooting page](https://github.com/run-stitchcode/stitchcode/wiki/Troubleshooting)
 has the fixes.

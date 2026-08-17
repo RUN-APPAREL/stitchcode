@@ -8,6 +8,6 @@
 
 **Repository**
 
-- [📖 README](https://github.com/OWNER/stitchcode#readme)
-- [🤝 Contribute](https://github.com/OWNER/stitchcode/blob/main/CONTRIBUTING.md)
-- [📜 Licence (MIT)](https://github.com/OWNER/stitchcode/blob/main/LICENSE)
+- [📖 README](https://github.com/run-stitchcode/stitchcode#readme)
+- [🤝 Contribute](https://github.com/run-stitchcode/stitchcode/blob/main/CONTRIBUTING.md)
+- [📜 Licence (MIT)](https://github.com/run-stitchcode/stitchcode/blob/main/LICENSE)

@@ -27,13 +27,14 @@ flowchart LR
 ## For wiki maintainers
 
 The pages in the repository's `wiki/` folder are the source of truth. To
-publish them to this wiki:
+publish them to this wiki, run the one-command helper from the repo root:
 
 ```bash
-git clone https://github.com/OWNER/stitchcode.wiki.git
-cp ../stitchcode/wiki/*.md stitchcode.wiki/
-cd stitchcode.wiki && git add . && git commit -m "sync wiki" && git push
+make wiki-init        # clones the wiki repo, copies wiki/*.md, pushes
 ```
+
+(Manual equivalent: clone `https://github.com/run-stitchcode/stitchcode.wiki.git`,
+copy `wiki/*.md` into it, commit and push.)
 
 `_Sidebar.md` and `_Footer.md` are special GitHub-wiki files that build the
 navigation you see on the right.
