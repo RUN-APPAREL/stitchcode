@@ -151,9 +151,9 @@ export function StylePanel({
     <IndustrialCard id="style" stripe="var(--t-accent)">
       <div className="p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-display text-[17px] font-black tracking-tight text-ink">02 · Ink & stock</h2>
+          <h2 className="font-display text-[17px] font-black tracking-tight text-ink">02 · Make it yours</h2>
           <Tele tone="accent">
-            <Palette size={11} /> live proof
+            <Palette size={11} /> updates live
           </Tele>
         </div>
 

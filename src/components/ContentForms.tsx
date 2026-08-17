@@ -44,7 +44,7 @@ export function ContentForms({
       <div className="p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-display text-[17px] font-black tracking-tight text-ink">
-            01 · What it holds
+            01 · What it says
           </h2>
           <Tele tone="ok">
             <ShieldCheck size={11} /> checked as you type
