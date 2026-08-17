@@ -15,3 +15,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <App />
   </React.StrictMode>,
 );
+
+/* Offline-first: register the service worker in production builds only.
+   The relative path keeps it working on Pages, custom domains and zips. */
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      /* insecure context or unsupported browser — the studio still works online */
+    });
+  });
+}

@@ -45,9 +45,14 @@ Pick the path that fits — no coding needed for the first two:
 | # | Path | Who it is for | What to do |
 |---|------|---------------|------------|
 | 🌐 | **Use it online** | Everyone | Open the GitHub Pages link (shown on the right of the repo) |
-| 📦 | **Run the app file** | Everyone | Download the latest **Release** zip, unzip, open `index.html` |
+| 📲 | **Install it** | Everyone | Open the Pages link once → use your browser's **"Install app"** — it then works with no internet at all |
+| 📦 | **Run the app file** | Helpers | Download the latest **Release** zip, unzip it, then run `npx serve .` (or `python3 -m http.server`) in that folder and open the link it prints |
 | 🐳 | **Run with Docker** | Helpers | `docker run -p 8080:80 ghcr.io/OWNER/stitchcode` → open `localhost:8080` |
 | 🛠️ | **Build from source** | Curious makers | Follow the three commands below |
+
+> 💡 **Why can't I just double-click `index.html`?** Modern web apps are built
+> from many small files that browsers refuse to load straight from a folder for
+> safety. A tiny local server (one command) or Docker fixes it — no coding needed.
 
 ```bash
 # 1. get the code        (or download the green "Code" zip instead)

@@ -10,7 +10,7 @@ Pick a path — each one is drawn out below.
 ```mermaid
 flowchart TD
   A["Who will visit the site?"] --> B{"Just you,<br/>on one computer?"}
-  B -- yes --> C["📂 Open dist/index.html<br/>directly — done!"]
+  B -- yes --> C["📂 One-command local<br/>server — done!"]
   B -- no --> D{"Want it on the<br/>internet for free?"}
   D -- yes --> E["🐙 GitHub Pages<br/>(automatic)"]
   D -- no --> F{"Have a server<br/>or NAS?"}
@@ -22,6 +22,26 @@ flowchart TD
   style G fill:#dff3f2,stroke:#073042,stroke-width:2px
   style H fill:#ffe9b8,stroke:#7a4a00,stroke-width:2px
 ```
+
+> 📌 **Heads-up:** double-clicking `index.html` won't work — browsers block
+> modern web apps from running straight out of a folder. The fix is one tiny
+> command (below), no coding involved.
+
+---
+
+## Path 0 · Just you, one command (no install wizard)
+
+Build the folder once, then serve it with a one-liner:
+
+```bash
+npm install && npm run build -- --base=./
+
+# then, inside the dist/ folder, pick any one:
+npx serve .                    # (needs Node.js)
+python3 -m http.server 8080    # (needs Python)
+```
+
+Open the link it prints. That's the whole trick.
 
 ---
 
@@ -89,16 +109,20 @@ npm run build -- --base=./     # the ./ keeps paths relative
 
 ---
 
-## Path 4 · Fully offline, no browser server
+## Path 4 · Fully offline, on a USB stick
 
-Because the app makes **zero network calls**, the built folder even works from
-a USB stick:
+Because the app makes **zero network calls**, the built folder travels on a
+USB stick. The visiting computer just needs one tiny command (Node or Python):
 
 ```
  1. npm run build -- --base=./
  2. copy dist/ onto the stick
- 3. on any computer: open dist/index.html
+ 3. on any computer:  cd into the folder, run  npx serve .
 ```
+
+And once the studio has been opened in a browser **once**, the built-in
+service worker keeps a copy — so it can even be re-opened with the internet
+switched off.
 
 History and theme choice live in that browser's local storage, so each
 computer keeps its own.
