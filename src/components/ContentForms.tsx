@@ -74,11 +74,11 @@ export function ContentForms({
             {type === "url" && (
               <>
                 <TextInput
-                  label="Destination URL"
+                  label="Your link"
                   value={forms.url}
                   onChange={(v) => set("url", v)}
-                  placeholder="example.com/launch"
-                  tip="Protocol is added automatically if you leave it off."
+                  placeholder="your-site.com"
+                  tip="Don't worry about the https:// part — we add it for you."
                 />
                 {forms.url && !/^https:\/\//i.test(forms.url.trim()) && (
                   <Note tone="warn">Plain HTTP — most phones will flag this as insecure.</Note>
@@ -88,10 +88,10 @@ export function ContentForms({
 
             {type === "text" && (
               <TextArea
-                label="Plain text"
+                label="Your message"
                 value={forms.text}
                 onChange={(v) => set("text", v)}
-                placeholder="Anything the scanner should read verbatim…"
+                placeholder="Type anything you want people to read when they scan…"
                 rows={4}
               />
             )}

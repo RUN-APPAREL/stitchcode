@@ -5,12 +5,12 @@
 export type QRType = "url" | "text" | "wifi" | "vcard" | "email" | "sms" | "phone";
 
 export const QR_TYPE_META: Record<QRType, { label: string; short: string }> = {
-  url: { label: "Website link", short: "URL" },
-  text: { label: "Plain text", short: "Text" },
+  url: { label: "Website link", short: "Link" },
+  text: { label: "Short message", short: "Text" },
   wifi: { label: "Wi-Fi network", short: "Wi-Fi" },
-  vcard: { label: "Contact card", short: "vCard" },
+  vcard: { label: "Contact card", short: "Card" },
   email: { label: "Email draft", short: "Email" },
-  sms: { label: "SMS message", short: "SMS" },
+  sms: { label: "Text message", short: "Message" },
   phone: { label: "Phone call", short: "Phone" },
 };
 

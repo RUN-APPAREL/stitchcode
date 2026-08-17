@@ -44,7 +44,7 @@ export function Checklist() {
     <section id="checklist" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-20 sm:px-8">
       <Reveal className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Tele tone="accent" className="mb-3">the field manual</Tele>
+          <Tele tone="accent" className="mb-3">six golden rules</Tele>
           <h2 className="font-display text-[clamp(28px,4vw,44px)] font-black leading-[1.02] tracking-tight text-ink">
             Six rules that keep
             <br />
@@ -64,7 +64,7 @@ export function Checklist() {
           </defs>
           <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2.5 3.5" />
           <text fontSize="8.4" fontWeight="700" letterSpacing="1.7" fill="currentColor" className="font-mono">
-            <textPath href="#stamp-arc">SPEC-SAFE · LOCAL-FIRST · PRINT-READY ·</textPath>
+            <textPath href="#stamp-arc">SCAN-SAFE · STAYS PRIVATE · PRINT-READY ·</textPath>
           </text>
           <rect x="45.5" y="45.5" width="9" height="9" fill="currentColor" transform="rotate(45 50 50)" />
         </svg>
@@ -101,7 +101,7 @@ export function Checklist() {
 const FAQS = [
   {
     q: "Are my codes generated on a server?",
-    a: "No. Stitchcode is 100% local-first — encoding, styling and export all happen in your browser with a fully spec-compliant engine. Nothing you type ever leaves the device, which is why the tool works fully offline.",
+    a: "No. Everything happens right in your browser — building, styling and saving. Nothing you type is ever sent anywhere, which is also why the whole tool keeps working with no internet.",
   },
   {
     q: "How big can I print my code?",

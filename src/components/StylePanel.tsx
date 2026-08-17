@@ -91,14 +91,14 @@ const SAMPLE_LOGO =
   );
 
 const PRESETS: Array<{ name: string; fg: string; bg: string }> = [
-  { name: "Press black", fg: "#1c1c1a", bg: "#ffffff" },
-  { name: "Vermillion", fg: "#c22e12", bg: "#fff6f0" },
-  { name: "Cobalt", fg: "#16336f", bg: "#eef2fb" },
-  { name: "Pine", fg: "#132a22", bg: "#eaf6ee" },
-  { name: "Espresso", fg: "#3e2417", bg: "#f7e9d7" },
-  { name: "Slate", fg: "#1f2937", bg: "#f6f7f8" },
-  { name: "Amber press", fg: "#7a4a00", bg: "#ffe9b8" },
-  { name: "Deep sea", fg: "#073042", bg: "#dff3f2" },
+  { name: "Classic black", fg: "#1c1c1a", bg: "#ffffff" },
+  { name: "Hot red", fg: "#c22e12", bg: "#fff6f0" },
+  { name: "Deep blue", fg: "#16336f", bg: "#eef2fb" },
+  { name: "Forest green", fg: "#132a22", bg: "#eaf6ee" },
+  { name: "Chocolate", fg: "#3e2417", bg: "#f7e9d7" },
+  { name: "Cool grey", fg: "#1f2937", bg: "#f6f7f8" },
+  { name: "Honey", fg: "#7a4a00", bg: "#ffe9b8" },
+  { name: "Ocean", fg: "#073042", bg: "#dff3f2" },
 ];
 
 export function StylePanel({
@@ -160,18 +160,18 @@ export function StylePanel({
         {/* colours */}
         <div className="grid grid-cols-2 gap-3">
           <ColorField label="Code colour" value={style.fg} onChange={(v) => patch({ fg: v })} />
-          <ColorField label="Field / stock" value={style.bg} onChange={(v) => patch({ bg: v })} />
+          <ColorField label="Paper colour" value={style.bg} onChange={(v) => patch({ bg: v })} />
         </div>
         <button
           onClick={() => patch({ fg: style.bg, bg: style.fg })}
           className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-ink-dim transition-colors hover:border-ink hover:text-ink"
         >
-          <ArrowDownUp size={12} /> Swap ink & stock
+          <ArrowDownUp size={12} /> Swap colours
         </button>
 
         {/* presets */}
         <div className="mt-4">
-          <span className="mb-2 block text-[12px] font-bold text-ink-dim">Ink presets</span>
+          <span className="mb-2 block text-[12px] font-bold text-ink-dim">Quick colours</span>
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map((p) => {
               const active = style.fg === p.fg && style.bg === p.bg;

@@ -127,9 +127,9 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
 
         <nav className="hidden items-center gap-5 md:flex">
           {[
-            ["Studio", "#studio"],
-            ["Field manual", "#checklist"],
-            ["FAQ", "#faq"],
+            ["Make a code", "#studio"],
+            ["Tips", "#checklist"],
+            ["Questions", "#faq"],
           ].map(([label, href]) => (
             <a
               key={href}
@@ -299,9 +299,9 @@ function Opener() {
             every time.
           </h1>
           <p className="mt-6 max-w-[440px] text-[15px] font-semibold leading-relaxed text-ink-dim">
-            Stitchcode encodes, styles and proofs your QR codes entirely in-browser — stitching
-            logos straight into the matrix, with a live scan-safety report that enforces quiet
-            zones, contrast and error correction before anything hits the press.
+            Stitchcode builds your QR codes right on this page — no servers, no waiting. You can
+            even stitch your own picture inside the code, and it checks every single one with a
+            real scanner before you print it.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3.5">
             <Pill onClick={() => document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" })}>
@@ -311,12 +311,12 @@ function Opener() {
               variant="ghost"
               onClick={() => document.getElementById("checklist")?.scrollIntoView({ behavior: "smooth" })}
             >
-              <ScanLine size={14} /> Field manual
+              <ScanLine size={14} /> See the tips
             </Pill>
           </div>
           <div className="mt-10 grid max-w-[440px] grid-cols-3 gap-3">
-            <Stat n={7} label="content types" delay={0.5} />
-            <Stat n={5} label="print previews" delay={0.65} />
+            <Stat n={7} label="ways to share" delay={0.5} />
+            <Stat n={5} label="paper tests" delay={0.65} />
             <Stat n={0} label="data sent out" delay={0.8} />
           </div>
         </Reveal>
@@ -492,13 +492,26 @@ function Workbench() {
 
   const filenameBase = `stitchcode-${type}-${summarize(type, forms).toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24) || "code"}`;
 
+  /* one-tap rescue: push the picture settings toward the research-backed
+     safe zone (stronger fade + brighter exposure; smaller inlay footprint) */
+  const autoFix = () => {
+    setStyle((s) => ({
+      ...s,
+      logoFade: Math.max(s.logoFade, 0.4),
+      logoBrightness: Math.max(s.logoBrightness, 1.5),
+      logoContrast: Math.max(s.logoContrast, 1.3),
+      logoScale: s.logoMode === "inlay" && s.logoScale > 0.4 ? 0.4 : s.logoScale,
+    }));
+    toast("info", "We nudged the picture settings — checking again…");
+  };
+
   return (
     <section id="studio" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-16 sm:px-8">
       <Reveal className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Tele tone="accent" className="mb-3">the workbench</Tele>
+          <Tele tone="accent" className="mb-3">the studio</Tele>
           <h2 className="font-display text-[clamp(26px,3.6vw,40px)] font-black leading-[1.02] tracking-tight text-ink">
-            <Decode text="Compose, style, proof." />
+            <Decode text="Pick, style, print." />
           </h2>
         </div>
         <p className="max-w-[300px] text-[13px] font-semibold leading-relaxed text-ink-dim">
@@ -528,6 +541,7 @@ function Workbench() {
             filenameBase={filenameBase}
             logoGrid={logoGrid}
             logoN={logoN}
+            onAutoFix={autoFix}
           />
         </Reveal>
         </div>

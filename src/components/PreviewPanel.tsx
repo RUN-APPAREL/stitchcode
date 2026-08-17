@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import jsQR from "jsqr";
-import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge, Printer } from "lucide-react";
+import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge, Printer, Sparkles } from "lucide-react";
 import type { QRMatrix } from "../lib/qr";
 import {
   canvasToBlob,
@@ -17,8 +17,8 @@ import { IndustrialCard, PassFail, Pill, SpecCell, Tele, useToast } from "./ui";
 const SUBSTRATES = [
   { id: "white", label: "White", finish: "paper", cls: "sub-white", color: "#ffffff" },
   { id: "kraft", label: "Kraft", finish: "brown paper", cls: "sub-kraft", color: "#bd8a52" },
-  { id: "knit", label: "Poly Knit", finish: "soft fabric", cls: "sub-knit", color: "#dfe3e7" },
-  { id: "cotton", label: "Woven Cotton", finish: "t-shirt fabric", cls: "sub-cotton", color: "#efebe0" },
+  { id: "knit", label: "Knit", finish: "soft fabric", cls: "sub-knit", color: "#dfe3e7" },
+  { id: "cotton", label: "Cotton", finish: "t-shirt fabric", cls: "sub-cotton", color: "#efebe0" },
   { id: "nylon", label: "Nylon", finish: "jacket fabric", cls: "sub-nylon", color: "#d3d9e1" },
 ] as const;
 type SubstrateId = (typeof SUBSTRATES)[number]["id"];
@@ -36,6 +36,7 @@ export function PreviewPanel({
   filenameBase,
   logoGrid,
   logoN,
+  onAutoFix,
 }: {
   payload: string;
   matrix: QRMatrix | null;
@@ -43,6 +44,8 @@ export function PreviewPanel({
   filenameBase: string;
   logoGrid: Uint8Array | null;
   logoN: number;
+  /** applies safer picture settings when the decode test fails */
+  onAutoFix?: () => void;
 }) {
   const toast = useToast();
   const [substrate, setSubstrate] = useState<SubstrateId>("white");
@@ -227,7 +230,7 @@ export function PreviewPanel({
         <div className="flex items-center justify-between gap-2 border-b-[1.5px] border-line bg-surface2/60 px-5 py-3">
           <div className="flex items-center gap-2">
             <span className="pulse-dot h-2 w-2 rounded-full bg-ok" />
-            <h2 className="font-display text-[15px] font-black tracking-tight text-ink">Live proof</h2>
+            <h2 className="font-display text-[15px] font-black tracking-tight text-ink">03 · Your QR code</h2>
           </div>
           {matrix && verified && <Tele tone="ok">✓ ready to scan</Tele>}
           {matrix && !verified && <Tele tone="warn">check the notes below</Tele>}
@@ -236,7 +239,7 @@ export function PreviewPanel({
         {/* substrate selector */}
         <div className="px-5 pt-4">
           <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
-            <Layers size={12} /> Substrate simulation
+            <Layers size={12} /> See it on…
           </span>
           <div className="flex flex-wrap gap-1.5">
             {SUBSTRATES.map((s) => (
@@ -347,6 +350,15 @@ export function PreviewPanel({
                           : "It won't scan — try more Fade, or make the picture smaller"}
                     </p>
                   </div>
+                  {decode.status === "fail" && onAutoFix && (
+                    <button
+                      type="button"
+                      onClick={onAutoFix}
+                      className="ml-auto flex shrink-0 items-center gap-1 rounded-full border-[1.5px] border-ink bg-accent px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.06em] text-accent-ink shadow-brutal-sm transition-transform hover:scale-[1.04] active:scale-95"
+                    >
+                      <Sparkles size={11} /> Fix it for me
+                    </button>
+                  )}
                 </li>
               )}
               {checks.map((c) => (
@@ -366,16 +378,16 @@ export function PreviewPanel({
         <div className="p-5">
           <div className="flex flex-col gap-2.5 sm:flex-row">
             <Pill onClick={onDownloadPng} disabled={!matrix} className="flex-1">
-              <Download size={15} /> Download PNG
+              <Download size={15} /> Save image
             </Pill>
             <Pill variant="dark" onClick={onDownloadSvg} disabled={!matrix} className="flex-1">
-              <ImageIcon size={15} /> SVG vector
+              <ImageIcon size={15} /> Save SVG
             </Pill>
             <Pill
               variant="ghost"
               onClick={onCopy}
               disabled={!matrix}
-              title="Copy PNG to clipboard"
+              title="Copy to clipboard"
               className="!px-4"
             >
               <Copy size={15} />
@@ -384,9 +396,9 @@ export function PreviewPanel({
               variant="ghost"
               onClick={() => setSheet(true)}
               disabled={!matrix}
-              title="Open a crop-marked print proof"
+              title="Open a ready-to-print sheet"
             >
-              <Printer size={15} /> <span className="hidden sm:inline">Print proof</span>
+              <Printer size={15} /> <span className="hidden sm:inline">Print it</span>
             </Pill>
           </div>
           {matrix && (
