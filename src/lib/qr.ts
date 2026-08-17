@@ -62,13 +62,25 @@ export async function logoToGrid(
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.fillStyle = bg === "transparent" ? "#ffffff" : bg;
   ctx.fillRect(0, 0, n, n);
-  /* contain-fit: scale to fit, centre, leave field-colour letterboxing */
-  const s = Math.min(n / img.width, n / img.height);
-  const dw = img.width * s;
-  const dh = img.height * s;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, (n - dw) / 2, (n - dh) / 2, dw, dh);
+  /*
+   * Contain-fit: scale to fit, centre, leave field-colour letterboxing.
+   * Some browsers (Safari) report 0×0 intrinsic dimensions for SVG images
+   * that only carry a viewBox — a zero divisor would produce NaN geometry
+   * and silently draw nothing. Fall back to a full-bleed draw (the viewBox
+   * still scales correctly) whenever the intrinsic size is unusable.
+   */
+  const iw = img.naturalWidth || img.width || 0;
+  const ih = img.naturalHeight || img.height || 0;
+  const s = iw > 0 && ih > 0 ? Math.min(n / iw, n / ih) : NaN;
+  if (Number.isFinite(s) && s > 0) {
+    const dw = Math.max(1, iw * s);
+    const dh = Math.max(1, ih * s);
+    ctx.drawImage(img, (n - dw) / 2, (n - dh) / 2, dw, dh);
+  } else {
+    ctx.drawImage(img, 0, 0, n, n);
+  }
 
   const { data } = ctx.getImageData(0, 0, n, n);
   const lum = new Float32Array(n * n);
@@ -100,6 +112,14 @@ export async function logoToGrid(
     }
   }
   return grid;
+}
+
+/** Fraction of the grid that became dark modules (0–1). Used for diagnostics. */
+export function gridDarkFraction(grid: Uint8Array): number {
+  if (grid.length === 0) return 0;
+  let dark = 0;
+  for (let i = 0; i < grid.length; i++) if (grid[i] === 1) dark++;
+  return dark / grid.length;
 }
 
 export interface QRMatrix {

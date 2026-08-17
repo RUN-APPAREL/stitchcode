@@ -405,7 +405,7 @@ function Workbench() {
   }, [payload, style.ec]);
 
   /* rasterise the uploaded mark into a module grid for the merge */
-  const { grid: logoGrid, n: logoN } = useLogoGrid(
+  const { grid: logoGrid, n: logoN, warning: logoWarning } = useLogoGrid(
     style.logo,
     matrix,
     style.logoScale,
@@ -501,7 +501,12 @@ function Workbench() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Reveal className="space-y-6">
           <ContentForms type={type} setType={setType} forms={forms} patch={setForms} />
-          <StylePanel style={style} setStyle={setStyle} mergePct={mergePct} />
+          <StylePanel
+            style={style}
+            setStyle={setStyle}
+            mergePct={mergePct}
+            logoWarning={logoWarning}
+          />
         </Reveal>
         <Reveal>
           <PreviewPanel

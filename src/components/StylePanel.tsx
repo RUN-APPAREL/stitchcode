@@ -60,11 +60,15 @@ export const DEFAULT_STYLE: StyleState = {
   exportPx: 1024,
 };
 
-/** Bundled high-contrast sample mark — lets people try the merge instantly. */
+/**
+ * Bundled high-contrast sample mark — lets people try the merge instantly.
+ * Carries explicit width/height (not just a viewBox) so every browser reports
+ * real intrinsic dimensions when it's rasterised onto the module grid.
+ */
 const SAMPLE_LOGO =
   "data:image/svg+xml," +
   encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="30" fill="#141412"/><path fill="#fff" d="M78 12 36 70h22L46 116l46-62H68l10-42z"/></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="30" fill="#141412"/><path fill="#fff" d="M78 12 36 70h22L46 116l46-62H68l10-42z"/></svg>`,
   );
 
 const PRESETS: Array<{ name: string; fg: string; bg: string }> = [
@@ -82,11 +86,14 @@ export function StylePanel({
   style,
   setStyle,
   mergePct,
+  logoWarning,
 }: {
   style: StyleState;
   setStyle: (fn: (s: StyleState) => StyleState) => void;
   /** % of the code's modules the merged mark currently replaces, or null */
   mergePct: number | null;
+  /** diagnostic when the uploaded mark can't produce a visible merge */
+  logoWarning?: string | null;
 }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -105,7 +112,9 @@ export function StylePanel({
 
   const onLogoFile = (file: File | undefined) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    /* some browsers report an empty MIME type for .svg — fall back to the extension */
+    const looksSvg = /\.svg$/i.test(file.name);
+    if (!file.type.startsWith("image/") && !looksSvg) {
       toast("error", "That file isn't an image");
       return;
     }
@@ -273,9 +282,13 @@ export function StylePanel({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.svg"
               className="hidden"
-              onChange={(e) => onLogoFile(e.target.files?.[0])}
+              onChange={(e) => {
+                onLogoFile(e.target.files?.[0]);
+                /* reset so re-picking the very same file fires again */
+                e.target.value = "";
+              }}
             />
           </div>
           {style.logo && (
@@ -335,6 +348,11 @@ export function StylePanel({
           {style.logo && style.ec !== "H" && (
             <p className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-danger">
               <AlertTriangle size={12} /> A merged mark replaces data — switch error correction up to H.
+            </p>
+          )}
+          {style.logo && logoWarning && (
+            <p className="mt-2 flex items-start gap-1.5 text-[11px] font-bold leading-snug text-warn">
+              <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {logoWarning}
             </p>
           )}
           {!style.logo && (

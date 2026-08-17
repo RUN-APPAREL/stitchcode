@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { logoRegionModules, logoToGrid, type QRMatrix } from "./qr";
+import { gridDarkFraction, logoRegionModules, logoToGrid, type QRMatrix } from "./qr";
 
 export interface LogoGridState {
   grid: Uint8Array | null;
   /** grid resolution in modules */
   n: number;
+  /** human-readable diagnostic when the mark can't produce a visible merge */
+  warning: string | null;
 }
 
 /**
@@ -24,22 +26,37 @@ export function useLogoGrid(
   dither: boolean,
   bg: string,
 ): LogoGridState {
-  const [state, setState] = useState<LogoGridState>({ grid: null, n: 0 });
+  const [state, setState] = useState<LogoGridState>({ grid: null, n: 0, warning: null });
   const reqId = useRef(0);
 
   useEffect(() => {
     const id = ++reqId.current;
     if (!logo || !matrix) {
-      setState({ grid: null, n: 0 });
+      setState({ grid: null, n: 0, warning: null });
       return;
     }
     const n = logoRegionModules(matrix.size, scale);
     logoToGrid(logo, n, threshold, bg, dither)
       .then((grid) => {
-        if (reqId.current === id) setState({ grid, n });
+        if (reqId.current !== id) return;
+        /*
+         * An all-light grid merges to pure field colour — the mark would be
+         * invisible. Surface a diagnostic instead of failing silently.
+         */
+        const frac = gridDarkFraction(grid);
+        const warning =
+          frac < 0.02
+            ? "No ink detected — the mark reads as white or transparent against the field. Use a darker image, or lower the ink threshold."
+            : null;
+        setState({ grid, n, warning });
       })
       .catch(() => {
-        if (reqId.current === id) setState({ grid: null, n: 0 });
+        if (reqId.current === id)
+          setState({
+            grid: null,
+            n: 0,
+            warning: "That image couldn't be read — try a PNG, JPG or SVG file.",
+          });
       });
   }, [logo, matrix, scale, threshold, dither, bg]);
 
