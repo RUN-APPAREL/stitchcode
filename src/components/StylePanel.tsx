@@ -79,16 +79,7 @@ export const DEFAULT_STYLE: StyleState = {
   exportPx: 1024,
 };
 
-/**
- * Bundled high-contrast sample mark — lets people try the merge instantly.
- * Carries explicit width/height (not just a viewBox) so every browser reports
- * real intrinsic dimensions when it's rasterised onto the module grid.
- */
-const SAMPLE_LOGO =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="30" fill="#141412"/><path fill="#fff" d="M78 12 36 70h22L46 116l46-62H68l10-42z"/></svg>`,
-  );
+import { SAMPLE_LOGO_URL } from "../lib/sample";
 
 const PRESETS: Array<{ name: string; fg: string; bg: string }> = [
   { name: "Classic black", fg: "#1c1c1a", bg: "#ffffff" },
@@ -291,7 +282,7 @@ export function StylePanel({
               </Pill>
             ) : (
               <span className="flex items-center gap-1.5">
-                <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => applyLogo(SAMPLE_LOGO, "Added a sample picture")}>
+                <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => applyLogo(SAMPLE_LOGO_URL, "Added a sample picture")}>
                   <Sparkles size={12} /> Try a sample
                 </Pill>
                 <Pill variant="dark" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => fileRef.current?.click()}>
