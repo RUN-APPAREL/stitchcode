@@ -69,21 +69,21 @@ jobs:
           zip -r ../stitchcode-${{ github.ref_name }}.zip .
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: electron-windows-*
           merge-multiple: true
           path: releases/
 
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: electron-macos-*
           merge-multiple: true
           path: releases/
 
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: electron-ubuntu-*
           merge-multiple: true
