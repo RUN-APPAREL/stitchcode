@@ -21,6 +21,8 @@ const SUBSTRATES = [
   { id: "cotton", label: "Cotton", finish: "t-shirt fabric", cls: "sub-cotton", color: "#efebe0" },
   { id: "nylon", label: "Nylon", finish: "jacket fabric", cls: "sub-nylon", color: "#d3d9e1" },
 ] as const;
+
+const LOUPE_ZOOM = 3.2;
 type SubstrateId = (typeof SUBSTRATES)[number]["id"];
 
 interface Check {
@@ -52,6 +54,26 @@ export function PreviewPanel({
   const [sheet, setSheet] = useState(false);
   const [decode, setDecode] = useState<{ status: "testing" | "pass" | "fail"; ms?: number } | null>(null);
   const decodeReq = useRef(0);
+
+  /* print-shop loupe: magnify the squares under the cursor */
+  const [lens, setLens] = useState<{ x: number; y: number; w: number } | null>(null);
+  const lensRaf = useRef(0);
+  const finePointer = useMemo(
+    () => typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches,
+    [],
+  );
+  const onScopeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!finePointer) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    cancelAnimationFrame(lensRaf.current);
+    lensRaf.current = requestAnimationFrame(() => setLens({ x, y, w: r.width }));
+  };
+  const onScopeLeave = () => {
+    cancelAnimationFrame(lensRaf.current);
+    setLens(null);
+  };
   const sub = SUBSTRATES.find((s) => s.id === substrate)!;
 
   /* style state → renderer options (merged-logo grid included) */
@@ -287,11 +309,35 @@ export function PreviewPanel({
             on {sub.label.toLowerCase()} · {sub.finish}
           </span>
           {matrix ? (
-            <div
-              key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logoThreshold}:${style.logoEdge}:${logoN}:${printed.length}`}
-              className="qr-pop qr-live w-full max-w-[300px]"
-              dangerouslySetInnerHTML={{ __html: printed }}
-            />
+            <div className="relative w-full max-w-[300px]">
+              <div
+                key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logoThreshold}:${style.logoEdge}:${logoN}:${printed.length}`}
+                className="qr-pop qr-live"
+                dangerouslySetInnerHTML={{ __html: printed }}
+                onPointerMove={onScopeMove}
+                onPointerLeave={onScopeLeave}
+              />
+              {lens && (
+                <div
+                  className="pointer-events-none absolute z-20 h-[132px] w-[132px] overflow-hidden rounded-full border-[1.5px] border-ink shadow-brutal"
+                  style={{ left: lens.x - 66, top: lens.y - 66, background: sub.color }}
+                  aria-hidden
+                >
+                  <div
+                    className="qr-live absolute"
+                    style={{ width: lens.w * LOUPE_ZOOM, left: 66 - lens.x * LOUPE_ZOOM, top: 66 - lens.y * LOUPE_ZOOM }}
+                    dangerouslySetInnerHTML={{ __html: printed }}
+                  />
+                  <span className="absolute left-1/2 top-1/2 h-[15px] w-[1.5px] -translate-x-1/2 -translate-y-1/2 bg-accent2" />
+                  <span className="absolute left-1/2 top-1/2 h-[1.5px] w-[15px] -translate-x-1/2 -translate-y-1/2 bg-accent2" />
+                </div>
+              )}
+              {finePointer && !lens && (
+                <span className="pointer-events-none absolute -bottom-1 right-0 z-[2] font-mono text-[8.5px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                  hover to magnify
+                </span>
+              )}
+            </div>
           ) : (
             <div className="flex aspect-square w-full max-w-[300px] flex-col items-center justify-center gap-3 rounded-[10px] border-[1.5px] border-dashed border-ink/30 bg-surface/70 text-center backdrop-blur-[1px]">
               <ScanLine size={28} className="text-accent2" />

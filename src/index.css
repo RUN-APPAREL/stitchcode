@@ -305,6 +305,14 @@ body {
   animation: spin-slow 26s linear infinite;
   transform-origin: 50% 50%;
 }
+/* Slow ambient drift for the watermark code */
+@keyframes drift {
+  0% { transform: rotate(10deg) translateY(0); }
+  100% { transform: rotate(15deg) translateY(-16px); }
+}
+.animate-drift {
+  animation: drift 11s ease-in-out infinite alternate;
+}
 /* Periodic scan sweep across the live proof */
 @keyframes scan-sweep {
   0% { top: -20%; opacity: 0; }
@@ -363,9 +371,9 @@ body {
   }
   .animate-floaty,
   .animate-spin-slow,
+  .animate-drift,
   .qr-pop,
   .pulse-dot,
-  .scan-sweep::after,
   .scan-sweep::after,
   .reveal,
   .reveal.is-in,

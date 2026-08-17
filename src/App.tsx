@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, MotionConfig, animate } from "motion/react";
-import { QrCode, WifiOff, History, Trash2, RotateCcw, ArrowDown, ScanLine } from "lucide-react";
+import { QrCode, WifiOff, History, Trash2, RotateCcw, ArrowDown, ScanLine, Shuffle } from "lucide-react";
 import {
   THEMES,
   applyTheme,
@@ -17,7 +17,7 @@ import { ContentForms } from "./components/ContentForms";
 import { StylePanel, DEFAULT_STYLE, toRenderOptions, type StyleState } from "./components/StylePanel";
 import { PreviewPanel } from "./components/PreviewPanel";
 import { useLogoGrid } from "./lib/useLogoGrid";
-import { Checklist, FAQ } from "./components/Sections";
+import { Anatomy, Checklist, FAQ } from "./components/Sections";
 
 /* ------------------------------------------------------------------ */
 /* History persistence                                                 */
@@ -129,6 +129,7 @@ export default function App() {
           <Opener />
           <Workbench />
           <Checklist />
+          <Anatomy />
           <FAQ />
           <Footer />
         </div>
@@ -173,6 +174,7 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
         <nav className="hidden items-center gap-5 md:flex">
           {[
             ["Make a code", "#studio"],
+            ["Inside a code", "#anatomy"],
             ["Tips", "#checklist"],
             ["Questions", "#faq"],
           ].map(([label, href]) => (
@@ -214,6 +216,21 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
                 </motion.button>
               </Tip>
             ))}
+            <Tip text="Surprise me with a theme">
+              <motion.button
+                aria-label="Random theme"
+                onClick={() => {
+                  const others = THEMES.filter((t) => t.id !== theme);
+                  onTheme(others[Math.floor(Math.random() * others.length)].id);
+                }}
+                whileHover={{ scale: 1.12, rotate: 12 }}
+                whileTap={{ scale: 0.9, rotate: -12 }}
+                transition={{ type: "spring", stiffness: 500, damping: 24 }}
+                className="ml-0.5 flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] border-ink/40 text-ink-dim hover:border-ink hover:text-ink"
+              >
+                <Shuffle size={11} />
+              </motion.button>
+            </Tip>
           </div>
         </div>
       </div>
@@ -356,7 +373,7 @@ function Opener() {
         aria-hidden
         className="pointer-events-none absolute -right-28 -top-16 hidden w-[460px] opacity-[0.055] lg:block"
       >
-        <div className="qr-live rotate-12" dangerouslySetInnerHTML={{ __html: watermark }} />
+        <div className="qr-live animate-drift" dangerouslySetInnerHTML={{ __html: watermark }} />
       </div>
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:pt-20">
         <Reveal>

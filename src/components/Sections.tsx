@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, ShieldCheck, Ruler, Contrast, Aperture, Printer, BookOpen } from "lucide-react";
+import { Plus, ShieldCheck, Ruler, Contrast, Aperture, Printer, BookOpen, Microscope } from "lucide-react";
 import { Reveal, Tele, Decode } from "./ui";
+import { createMatrix, renderSVG } from "../lib/qr";
 
 /* ------------------------------------------------------------------ */
 /* Field manual — numbered print rules                                 */
@@ -173,6 +174,241 @@ export function FAQ() {
           );
         })}
       </Reveal>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Anatomy — an interactive tour of a real code's working parts        */
+/* ------------------------------------------------------------------ */
+const ANATOMY_PAYLOAD =
+  "https://stitchcode.run/inside-a-qr-code?finders=7x7-corner-squares&timing=alternating-line" +
+  "&alignment=5x5-target&version=name-tag&format=safety-bits&data=your-message-lives-here";
+
+interface AnatomyPart {
+  id: string;
+  name: string;
+  body: string;
+  dot: { x: number; y: number };
+  region?: { left: number; top: number; w: number; h: number };
+  ring?: boolean;
+}
+
+export function Anatomy() {
+  const [active, setActive] = useState("finder");
+
+  const { svg, version, size } = useMemo(() => {
+    const m = createMatrix(ANATOMY_PAYLOAD, "H");
+    const svgStr = renderSVG(
+      m,
+      {
+        ec: "H",
+        margin: 3,
+        fg: "#141412",
+        bg: "#ffffff",
+        dotStyle: "square",
+        cornerStyle: "square",
+        logoGrid: null,
+        logoN: 0,
+        logoRes: 1,
+        logoMode: "stitch",
+        logoScale: 0,
+      },
+      560,
+    );
+    return { svg: svgStr, version: m.version, size: m.size };
+  }, []);
+
+  /* every coordinate derives from the real module count, so it's exact */
+  const parts = useMemo<AnatomyPart[]>(() => {
+    const T = size + 6; /* code + quiet-zone margin of 3 per side */
+    const p = (v: number) => v / T;
+    return [
+      {
+        id: "finder",
+        name: "Corner squares",
+        body: "Three big squares hiding in the corners. A camera spots these first — they shout \u201chere's a code!\u201d and help it straighten everything out, even if the code is tilted.",
+        dot: { x: p(6.5), y: p(6.5) },
+        region: { left: p(3), top: p(3), w: p(8), h: p(8) },
+      },
+      {
+        id: "timing",
+        name: "Counting line",
+        body: "The dotted line running between the corner squares. It lets the camera count the squares and measure the whole grid, row by row.",
+        dot: { x: p(3 + size / 2), y: p(9.5) },
+        region: { left: p(11), top: p(9), w: p(size - 16), h: p(1) },
+      },
+      {
+        id: "alignment",
+        name: "Straighten dot",
+        body: "Bigger codes get a small bullseye near the bottom-right corner. It keeps the code readable even when it's bent on a bottle or scanned at a steep angle.",
+        dot: { x: p(3 + size - 7), y: p(3 + size - 7) },
+        region: { left: p(size - 6), top: p(size - 6), w: p(5), h: p(5) },
+      },
+      {
+        id: "format",
+        name: "Care card",
+        body: "Tiny extra squares tucked beside the corners. They tell the camera how tough the code is and which colour way round it goes.",
+        dot: { x: p(11.5), y: p(14.5) },
+        region: { left: p(9), top: p(9), w: p(4), h: p(4) },
+      },
+      {
+        id: "version",
+        name: "Name tag",
+        body: "Only on big codes: a small block that announces exactly how many squares to expect, so the camera never miscounts halfway through.",
+        dot: { x: p(3 + size - 9.5), y: p(5.5) },
+        region: { left: p(size - 8), top: p(3), w: p(3), h: p(6) },
+      },
+      {
+        id: "data",
+        name: "The message",
+        body: "Every other square is your link or message, chopped up and scrambled into dark and light. This is the part a picture is allowed to borrow when you stitch one in.",
+        dot: { x: p(3 + size * 0.3), y: p(3 + size * 0.7) },
+        region: { left: p(3 + size * 0.16), top: p(3 + size * 0.55), w: p(size * 0.27), h: p(size * 0.3) },
+      },
+      {
+        id: "quiet",
+        name: "Clear border",
+        body: "The empty space around the code — at least four squares wide. It shows the camera exactly where the code begins and ends. Crowding it is the #1 reason codes fail.",
+        dot: { x: 0.5, y: p(1.5) },
+        ring: true,
+      },
+    ];
+  }, [size]);
+
+  const part = parts.find((x) => x.id === active) ?? parts[0];
+
+  return (
+    <section id="anatomy" className="mx-auto max-w-6xl scroll-mt-24 px-5 pb-20 sm:px-8">
+      <Reveal className="mb-8 flex flex-col items-start gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <Tele tone="accent" className="mb-3">
+            <Microscope size={11} /> take it apart
+          </Tele>
+          <h2 className="font-display text-[clamp(26px,3.6vw,40px)] font-black leading-[1.02] tracking-tight text-ink">
+            <Decode text="What's inside a code?" />
+          </h2>
+        </div>
+        <p className="max-w-[320px] text-[13.5px] font-semibold leading-relaxed text-ink-dim">
+          This is a real code — every part below is in exactly the right place. Tap the dots to
+          see what each one does.
+        </p>
+      </Reveal>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+        {/* the specimen */}
+        <Reveal>
+          <div className="relative rounded-[16px] border-[1.5px] border-ink bg-white p-6 shadow-brutal">
+            <div className="relative">
+              <div className="qr-live" dangerouslySetInnerHTML={{ __html: svg }} />
+
+              {/* highlight region for the active part */}
+              <AnimatePresence mode="wait">
+                {part.ring ? (
+                  <motion.span
+                    key="ring"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="pointer-events-none absolute inset-0 rounded-[8px] border-[3px] border-dashed border-accent2"
+                  />
+                ) : (
+                  part.region && (
+                    <motion.span
+                      key={part.id}
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.6 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="pointer-events-none absolute rounded-[4px] border-[2.5px] border-accent2 bg-accent2/25"
+                      style={{
+                        left: `${part.region.left * 100}%`,
+                        top: `${part.region.top * 100}%`,
+                        width: `${part.region.w * 100}%`,
+                        height: `${part.region.h * 100}%`,
+                      }}
+                    />
+                  )
+                )}
+              </AnimatePresence>
+
+              {/* hotspot dots */}
+              {parts.map((pt) => {
+                const on = pt.id === active;
+                return (
+                  <button
+                    key={pt.id}
+                    type="button"
+                    onClick={() => setActive(pt.id)}
+                    aria-pressed={on}
+                    aria-label={pt.name}
+                    className={`absolute z-10 h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.5px] transition-all duration-200 ${
+                      on
+                        ? "scale-125 border-ink bg-accent shadow-brutal-sm"
+                        : "border-bg bg-ink hover:scale-110 hover:bg-accent2"
+                    }`}
+                    style={{ left: `${pt.dot.x * 100}%`, top: `${pt.dot.y * 100}%` }}
+                  >
+                    <span
+                      className={`absolute inset-[3px] rounded-full ${on ? "bg-accent-ink" : "bg-bg"}`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-4 border-t border-dashed border-neutral-300 pt-3 text-center font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-neutral-500">
+              a real version {version} code · {size}×{size} squares
+            </p>
+          </div>
+        </Reveal>
+
+        {/* the parts list */}
+        <Reveal stagger className="space-y-2.5">
+          {parts.map((pt, i) => {
+            const on = pt.id === active;
+            return (
+              <div
+                key={pt.id}
+                className={`rounded-[12px] border-[1.5px] transition-all ${
+                  on ? "border-ink bg-surface shadow-brutal" : "border-line bg-surface/60 hover:border-ink/60"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setActive(pt.id)}
+                  className="flex w-full items-center gap-3.5 px-4 py-3 text-left"
+                >
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] font-display text-[13px] font-black transition-colors ${
+                      on ? "border-ink bg-accent text-accent-ink" : "border-line text-ink-dim"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className={`text-[14.5px] font-black tracking-tight ${on ? "text-ink" : "text-ink-dim"}`}>
+                    {pt.name}
+                  </span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {on && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      className="overflow-hidden"
+                    >
+                      <p className="px-4 pb-4 pl-[58px] text-[13px] font-medium leading-relaxed text-ink-dim">
+                        {pt.body}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </Reveal>
+      </div>
     </section>
   );
 }
