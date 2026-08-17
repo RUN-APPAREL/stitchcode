@@ -17,13 +17,19 @@ export interface QRRenderOptions {
   dotStyle: DotStyle;
   cornerStyle: CornerStyle;
   /**
-   * Merged logo: an N×N binary grid (1 = dark module) that replaces the
-   * data modules in the centre of the code. Level H restores the data
-   * underneath, so the mark literally becomes part of the matrix.
+   * Logo grid: a binary bitmap (1 = dark) of the uploaded mark.
+   * - "inlay": grid is logoN×logoN (one bit per module) and *replaces* the
+   *   data modules in the centre — level H restores the data underneath.
+   * - "stitch": grid is (logoN·logoRes)² — a sub-module halftone. The image
+   *   is laid down first, then the *complete* code is drawn over it, so no
+   *   data is ever lost at any error-correction level.
    */
   logoGrid: Uint8Array | null;
-  /** grid resolution in modules (logoGrid is logoN × logoN) */
+  /** logo region width in modules */
   logoN: number;
+  /** sub-pixels per module in logoGrid (stitch: 3, inlay: 1) */
+  logoRes: number;
+  logoMode: "stitch" | "inlay";
   /** logo region as fraction of the code width (0.1 – 0.5) */
   logoScale: number;
 }
@@ -48,20 +54,38 @@ export function logoRegionModules(codeSize: number, scale: number): number {
  * quantisation error to neighbouring cells — the halftone technique that keeps
  * gradients, shadows and thin strokes legible at QR resolution.
  */
+export interface LogoRasterOptions {
+  /**
+   * Sub-pixels per module. "Stitch" mode rasterises at 3× the module grid so
+   * the error-diffusion halftone is far finer than the code itself; "inlay"
+   * works at module resolution (1 bit per module).
+   */
+  res?: number;
+  /** pre-exposure multiplier applied before thresholding (1 = unchanged) */
+  brightness?: number;
+  /** contrast about the 0.5 midpoint, applied after brightness (1 = unchanged) */
+  contrast?: number;
+}
+
 export async function logoToGrid(
   src: string,
   n: number,
   threshold: number,
   bg: string,
   dither: boolean,
+  opts: LogoRasterOptions = {},
 ): Promise<Uint8Array> {
+  const res = Math.max(1, Math.round(opts.res ?? 1));
+  const N = n * res;
+  const brightness = opts.brightness ?? 1;
+  const contrast = opts.contrast ?? 1;
   const img = await loadImage(src);
   const canvas = document.createElement("canvas");
-  canvas.width = n;
-  canvas.height = n;
+  canvas.width = N;
+  canvas.height = N;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.fillStyle = bg === "transparent" ? "#ffffff" : bg;
-  ctx.fillRect(0, 0, n, n);
+  ctx.fillRect(0, 0, N, N);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   /*
@@ -73,41 +97,44 @@ export async function logoToGrid(
    */
   const iw = img.naturalWidth || img.width || 0;
   const ih = img.naturalHeight || img.height || 0;
-  const s = iw > 0 && ih > 0 ? Math.min(n / iw, n / ih) : NaN;
+  const s = iw > 0 && ih > 0 ? Math.min(N / iw, N / ih) : NaN;
   if (Number.isFinite(s) && s > 0) {
     const dw = Math.max(1, iw * s);
     const dh = Math.max(1, ih * s);
-    ctx.drawImage(img, (n - dw) / 2, (n - dh) / 2, dw, dh);
+    ctx.drawImage(img, (N - dw) / 2, (N - dh) / 2, dw, dh);
   } else {
-    ctx.drawImage(img, 0, 0, n, n);
+    ctx.drawImage(img, 0, 0, N, N);
   }
 
-  const { data } = ctx.getImageData(0, 0, n, n);
-  const lum = new Float32Array(n * n);
-  for (let i = 0; i < n * n; i++) {
-    lum[i] =
+  const { data } = ctx.getImageData(0, 0, N, N);
+  const lum = new Float32Array(N * N);
+  for (let i = 0; i < N * N; i++) {
+    let l =
       (0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]) / 255;
+    /* brightness first, then contrast about the midpoint (same order as CSS filters) */
+    l = (l * brightness - 0.5) * contrast + 0.5;
+    lum[i] = l < 0 ? 0 : l > 1 ? 1 : l;
   }
 
-  const grid = new Uint8Array(n * n);
+  const grid = new Uint8Array(N * N);
   if (!dither) {
-    for (let i = 0; i < n * n; i++) grid[i] = lum[i] < threshold ? 1 : 0;
+    for (let i = 0; i < N * N; i++) grid[i] = lum[i] < threshold ? 1 : 0;
     return grid;
   }
 
   /* Floyd–Steinberg error diffusion */
-  for (let j = 0; j < n; j++) {
-    for (let i = 0; i < n; i++) {
-      const idx = j * n + i;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const idx = j * N + i;
       const old = lum[idx];
       const dark = old < threshold ? 1 : 0;
       grid[idx] = dark;
       const err = old - (dark ? 0 : 1);
-      if (i + 1 < n) lum[idx + 1] += (err * 7) / 16;
-      if (j + 1 < n) {
-        if (i > 0) lum[idx + n - 1] += (err * 3) / 16;
-        lum[idx + n] += (err * 5) / 16;
-        if (i + 1 < n) lum[idx + n + 1] += err / 16;
+      if (i + 1 < N) lum[idx + 1] += (err * 7) / 16;
+      if (j + 1 < N) {
+        if (i > 0) lum[idx + N - 1] += (err * 3) / 16;
+        lum[idx + N] += (err * 5) / 16;
+        if (i + 1 < N) lum[idx + N + 1] += err / 16;
       }
     }
   }
@@ -263,18 +290,32 @@ function finderSVG(ox: number, oy: number, o: QRRenderOptions): string {
 }
 
 /**
- * Merged-logo pass: paints the logo's module grid into the centre of the
- * matrix. Dark cells become foreground modules, light cells background —
- * the mark IS the code.
+ * Logo pass. Two philosophies:
  *
- * Finder zones are never touched. A central alignment pattern (versions 7+)
- * may be absorbed — those codes always carry two or more alignment patterns
- * besides it, so decoders cope (this is the same trade-off every branded
- * QR makes when a logo sits mid-symbol; level H absorbs the loss).
+ * INLAY — the mark's cells replace the data modules (dark cell → dark module,
+ * light cell → field). Finder zones are never touched; a central alignment
+ * pattern may be absorbed (level H covers the loss — the same trade-off every
+ * branded QR makes).
+ *
+ * STITCH — the mark is dithered at `logoRes`× the module grid and laid down
+ * first; then the *complete* code is repainted over it: functional patterns
+ * (alignment, timing) as solid squares, data modules as centred dots. Nothing
+ * is erased, so the code stays scannable at any error-correction level.
  */
-function mergedLogoSVG(m: QRMatrix, o: QRRenderOptions, mg: number): string {
+function mergedLogoSVG(
+  m: QRMatrix,
+  o: QRRenderOptions,
+  centers: Array<[number, number]>,
+  mg: number,
+): string {
   if (!o.logoGrid || o.logoN < 3 || o.logoN > m.size) return "";
+  if (o.logoMode === "stitch") return stitchLogoSVG(m, o, centers, mg);
+  return inlayLogoSVG(m, o, mg);
+}
+
+function inlayLogoSVG(m: QRMatrix, o: QRRenderOptions, mg: number): string {
   const region = o.logoN;
+  if (!o.logoGrid || o.logoGrid.length !== region * region) return "";
   const ox = Math.floor((m.size - region) / 2);
   let out = "";
   for (let j = 0; j < region; j++) {
@@ -286,6 +327,60 @@ function mergedLogoSVG(m: QRMatrix, o: QRRenderOptions, mg: number): string {
       out += `<rect x="${mg + x}" y="${mg + y}" width="1" height="1" fill="${
         dark ? o.fg : o.bg
       }"/>`;
+    }
+  }
+  return out;
+}
+
+function stitchLogoSVG(
+  m: QRMatrix,
+  o: QRRenderOptions,
+  centers: Array<[number, number]>,
+  mg: number,
+): string {
+  const n = o.logoN;
+  const res = Math.max(1, Math.round(o.logoRes));
+  const N = n * res;
+  if (!o.logoGrid || o.logoGrid.length !== N * N) return "";
+  const ox = Math.floor((m.size - n) / 2);
+  const u = 1 / res;
+  const w = u + 0.02; /* slight overlap kills anti-aliasing seams */
+  let out = "";
+
+  /* pass 1 — the dithered halftone, skipping cells under functional patterns */
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const mx = ox + Math.floor(i / res);
+      const my = ox + Math.floor(j / res);
+      if (isFunctional(mx, my, m.size, centers)) continue;
+      const dark = o.logoGrid[j * N + i] === 1;
+      out += `<rect x="${f(mg + ox + i * u)}" y="${f(mg + ox + j * u)}" width="${f(
+        w,
+      )}" height="${f(w)}" fill="${dark ? o.fg : o.bg}"/>`;
+    }
+  }
+
+  /* pass 2 — the complete code over the image */
+  for (let y = ox; y < ox + n; y++) {
+    for (let x = ox; x < ox + n; x++) {
+      if (inFinderRegion(x, y, m.size)) continue;
+      const X = mg + x;
+      const Y = mg + y;
+      if (isFunctional(x, y, m.size, centers)) {
+        /* alignment / timing stay solid for scan safety */
+        out += `<rect x="${X}" y="${Y}" width="1" height="1" fill="${
+          m.get(x, y) ? o.fg : o.bg
+        }"/>`;
+      } else if (m.get(x, y)) {
+        /* data modules as centred dots — far more legible than 1px specks */
+        if (o.dotStyle === "dots") {
+          out += `<circle cx="${f(X + 0.5)}" cy="${f(Y + 0.5)}" r="0.27" fill="${o.fg}"/>`;
+        } else if (o.dotStyle === "rounded") {
+          out += `<rect x="${f(X + 0.21)}" y="${f(Y + 0.21)}" width="0.58" height="0.58" rx="0.17" fill="${o.fg}"/>`;
+        } else {
+          out += `<rect x="${f(X + 0.19)}" y="${f(Y + 0.19)}" width="0.62" height="0.62" fill="${o.fg}"/>`;
+        }
+      }
     }
   }
   return out;
@@ -319,7 +414,7 @@ export function renderSVG(m: QRMatrix, o: QRRenderOptions, px = 560): string {
   body += finderSVG(mg + m.size - 7, mg, o);
   body += finderSVG(mg, mg + m.size - 7, o);
 
-  body += mergedLogoSVG(m, o, mg);
+  body += mergedLogoSVG(m, o, centers, mg);
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
@@ -418,18 +513,64 @@ export async function renderCanvas(
   finder(m.size - 7, 0);
   finder(0, m.size - 7);
 
-  /* merged logo — the mark's cells become real modules (finder zones guarded) */
+  /* logo — inlay replaces data modules; stitch lays a halftone down and
+     repaints the complete code over it */
   if (o.logoGrid && o.logoN >= 3 && o.logoN <= m.size) {
-    const region = o.logoN;
-    const ox = Math.floor((m.size - region) / 2);
-    for (let j = 0; j < region; j++) {
-      for (let i = 0; i < region; i++) {
-        const x = ox + i;
-        const y = ox + j;
-        if (inFinderRegion(x, y, m.size)) continue;
-        const dark = o.logoGrid[j * region + i] === 1;
-        ctx.fillStyle = dark ? o.fg : o.bg;
-        ctx.fillRect((x + o.margin) * s, (y + o.margin) * s, s + 0.5, s + 0.5);
+    if (o.logoMode === "stitch") {
+      const n = o.logoN;
+      const res = Math.max(1, Math.round(o.logoRes));
+      const N = n * res;
+      if (o.logoGrid.length === N * N) {
+        const ox = Math.floor((m.size - n) / 2);
+        const u = s / res;
+        const w = u + 0.5;
+        for (let j = 0; j < N; j++) {
+          for (let i = 0; i < N; i++) {
+            const mx = ox + Math.floor(i / res);
+            const my = ox + Math.floor(j / res);
+            if (isFunctional(mx, my, m.size, centers)) continue;
+            ctx.fillStyle = o.logoGrid[j * N + i] === 1 ? o.fg : o.bg;
+            ctx.fillRect((ox + i / res + o.margin) * s, (ox + j / res + o.margin) * s, w, w);
+          }
+        }
+        for (let y = ox; y < ox + n; y++) {
+          for (let x = ox; x < ox + n; x++) {
+            if (inFinderRegion(x, y, m.size)) continue;
+            const X = (x + o.margin) * s;
+            const Y = (y + o.margin) * s;
+            if (isFunctional(x, y, m.size, centers)) {
+              ctx.fillStyle = m.get(x, y) ? o.fg : o.bg;
+              ctx.fillRect(X, Y, s + 0.5, s + 0.5);
+            } else if (m.get(x, y)) {
+              ctx.fillStyle = o.fg;
+              if (o.dotStyle === "dots") {
+                ctx.beginPath();
+                ctx.arc(X + s / 2, Y + s / 2, s * 0.27, 0, Math.PI * 2);
+                ctx.fill();
+              } else if (o.dotStyle === "rounded") {
+                rr(ctx, X + s * 0.21, Y + s * 0.21, s * 0.58, s * 0.58, s * 0.17);
+                ctx.fill();
+              } else {
+                ctx.fillRect(X + s * 0.19, Y + s * 0.19, s * 0.62, s * 0.62);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      const region = o.logoN;
+      if (o.logoGrid.length === region * region) {
+        const ox = Math.floor((m.size - region) / 2);
+        for (let j = 0; j < region; j++) {
+          for (let i = 0; i < region; i++) {
+            const x = ox + i;
+            const y = ox + j;
+            if (inFinderRegion(x, y, m.size)) continue;
+            const dark = o.logoGrid[j * region + i] === 1;
+            ctx.fillStyle = dark ? o.fg : o.bg;
+            ctx.fillRect((x + o.margin) * s, (y + o.margin) * s, s + 0.5, s + 0.5);
+          }
+        }
       }
     }
   }

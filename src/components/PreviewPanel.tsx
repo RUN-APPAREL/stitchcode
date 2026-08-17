@@ -95,20 +95,31 @@ export function PreviewPanel({
     if (style.logo) {
       const area = logoN > 0 ? (logoN * logoN) / (matrix.size * matrix.size) : 0;
       const areaPct = Math.round(area * 100);
-      const okLogo = style.ec === "H" && area <= 0.25;
-      list.push({
-        label: "Merged logo",
-        detail: okLogo
-          ? logoN > 0
-            ? `Woven in as ${logoN}×${logoN} modules — ${areaPct}% of the code${
-                area > 0.2 ? ", near the safe limit" : ", well within the safe limit"
-              }`
-            : "Rasterising the mark into modules…"
-          : style.ec !== "H"
-            ? "Switch error correction to High first"
-            : "It replaces too much of the code — shrink the merge size",
-        pass: okLogo,
-      });
+      if (style.logoMode === "stitch") {
+        list.push({
+          label: "Stitched logo",
+          detail:
+            logoN > 0
+              ? "Halftone under the complete code — no data replaced, safe at any level"
+              : "Rasterising the mark…",
+          pass: true,
+        });
+      } else {
+        const okLogo = style.ec === "H" && area <= 0.25;
+        list.push({
+          label: "Inlaid logo",
+          detail: okLogo
+            ? logoN > 0
+              ? `Inlaid as ${logoN}×${logoN} modules — ${areaPct}% of the code${
+                  area > 0.2 ? ", near the safe limit" : ", well within the safe limit"
+                }`
+              : "Rasterising the mark…"
+            : style.ec !== "H"
+              ? "Switch error correction to High, or use Stitch"
+              : "It replaces too much of the code — shrink the image size",
+          pass: okLogo,
+        });
+      }
     }
     if (payload.startsWith("http://")) {
       list.push({ label: "Link safety", detail: "Plain HTTP — browsers will warn people", pass: false });
@@ -428,7 +439,9 @@ function PrintSheet({
         <div className="p-10">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-display text-[22px] font-black leading-none tracking-tight">QRsmith</p>
+              <p className="font-display text-[20px] font-black leading-none tracking-tight">
+                RUN STITCHCODE
+              </p>
               <p className="mt-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.28em] text-neutral-500">
                 Print proof
               </p>

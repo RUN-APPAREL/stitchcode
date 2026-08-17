@@ -20,6 +20,8 @@ export function toRenderOptions(
     cornerStyle: s.cornerStyle,
     logoGrid,
     logoN,
+    logoRes: s.logoMode === "stitch" ? 3 : 1,
+    logoMode: s.logoMode,
     logoScale: s.logoScale,
   };
 }
@@ -34,12 +36,22 @@ export interface StyleState {
   cornerStyle: CornerStyle;
   /** uploaded mark, as a data URL */
   logo: string | null;
-  /** merged-logo region as a fraction of the code width (0.1 – 0.5) */
-  logoScale: number;
-  /** luminance cutoff — below it, a pixel becomes a dark module */
-  logoThreshold: number;
   /**
-   * "dither" spreads quantisation error to neighbouring modules (halftone —
+   * "stitch" — the mark is dithered at 3× the module grid and the complete
+   * code is repainted over it (nothing is erased, any EC level works).
+   * "inlay" — the mark replaces the data modules (needs level H).
+   */
+  logoMode: "stitch" | "inlay";
+  /** logo region as a fraction of the code width (0.1 – 0.5) */
+  logoScale: number;
+  /** luminance cutoff — below it, a pixel becomes dark */
+  logoThreshold: number;
+  /** pre-exposure applied before thresholding (1 = unchanged) */
+  logoBrightness: number;
+  /** contrast about the midpoint, after brightness (1 = unchanged) */
+  logoContrast: number;
+  /**
+   * "dither" spreads quantisation error to neighbouring pixels (halftone —
    * keeps gradients and thin strokes legible); "crisp" is a hard 1-bit cut.
    */
   logoEdge: "dither" | "crisp";
@@ -54,8 +66,11 @@ export const DEFAULT_STYLE: StyleState = {
   dotStyle: "square",
   cornerStyle: "square",
   logo: null,
+  logoMode: "stitch",
   logoScale: 0.34,
   logoThreshold: 0.5,
+  logoBrightness: 1.3,
+  logoContrast: 1.2,
   logoEdge: "dither",
   exportPx: 1024,
 };
@@ -101,9 +116,10 @@ export function StylePanel({
   const patch = (p: Partial<StyleState>) => setStyle((s) => ({ ...s, ...p }));
 
   const applyLogo = (logo: string, doneMsg: string) => {
-    if (style.ec !== "H") {
+    /* Stitch needs no extra redundancy; Inlay erases data, so raise to H */
+    if (style.logoMode === "inlay" && style.ec !== "H") {
       patch({ logo, ec: "H" });
-      toast("success", `${doneMsg} — error correction raised to H`);
+      toast("success", `${doneMsg} — error correction raised to H for the inlay`);
     } else {
       patch({ logo });
       toast("success", doneMsg);
@@ -262,8 +278,8 @@ export function StylePanel({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
-              Merged logo
-              <Tip text="Your mark is pixelated into the matrix and becomes real modules — dark pixels turn into dark squares, light ones into the field. It's part of the code, not a sticker on top." />
+              Logo in the code
+              <Tip text="Your mark becomes part of the code itself — never a sticker on top. Stitch dithers the image under the complete code (nothing erased); Inlay pixelates it into real modules that replace data (level H restores it)." />
             </span>
             {style.logo ? (
               <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => patch({ logo: null })}>
@@ -299,9 +315,23 @@ export function StylePanel({
                 className="h-11 w-11 rounded-[8px] border-[1.5px] border-ink object-contain"
               />
               <div className="flex-1 space-y-3">
+                <div>
+                  <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
+                    Technique
+                    <Tip text="Stitch lays a fine halftone of the image down and redraws the complete code over it — nothing is erased, so it scans at any error-correction level. Inlay turns the image into real modules that replace the data underneath — level H restores what's lost." />
+                  </span>
+                  <Seg<"stitch" | "inlay">
+                    value={style.logoMode}
+                    onChange={(v) => patch({ logoMode: v })}
+                    options={[
+                      { value: "stitch", label: "Stitch" },
+                      { value: "inlay", label: "Inlay" },
+                    ]}
+                  />
+                </div>
                 <SliderRow
-                  label="Merge size"
-                  tip="How wide the woven region is. The whole mark always fits — it's never cropped. Up to half the code width stays within level H's recovery budget."
+                  label="Image size"
+                  tip="How wide the logo region is. The whole mark always fits — it's never cropped. Inlay should stay under half the code width so level H can restore the replaced data."
                   value={Math.round(style.logoScale * 100)}
                   min={10}
                   max={50}
@@ -310,12 +340,32 @@ export function StylePanel({
                 />
                 <SliderRow
                   label="Ink threshold"
-                  tip="The luminance midpoint: pixels darker than this become dark modules. With dithering on, it acts like a halftone's exposure — tune it until the mark reads clearly."
+                  tip="The luminance midpoint: pixels darker than this become dark. With dithering on it acts like a halftone's exposure — tune it until the mark reads clearly."
                   value={Math.round(style.logoThreshold * 100)}
                   min={15}
                   max={85}
                   step={5}
                   onChange={(v) => patch({ logoThreshold: v / 100 })}
+                  format={(v) => `${v}%`}
+                />
+                <SliderRow
+                  label="Brightness"
+                  tip="Pre-exposure applied before dithering. Raise it to open up shadows and make the image read lighter under the code."
+                  value={Math.round(style.logoBrightness * 100)}
+                  min={40}
+                  max={260}
+                  step={5}
+                  onChange={(v) => patch({ logoBrightness: v / 100 })}
+                  format={(v) => `${v}%`}
+                />
+                <SliderRow
+                  label="Contrast"
+                  tip="Pushes tones away from the midpoint after brightness — separates the image from the modules so both stay legible."
+                  value={Math.round(style.logoContrast * 100)}
+                  min={50}
+                  max={260}
+                  step={5}
+                  onChange={(v) => patch({ logoContrast: v / 100 })}
                   format={(v) => `${v}%`}
                 />
                 <div>
@@ -332,22 +382,28 @@ export function StylePanel({
                     ]}
                   />
                 </div>
-                {mergePct !== null && (
-                  <p
-                    className={`flex items-center gap-1.5 text-[11px] font-bold ${
-                      mergePct > 25 ? "text-danger" : mergePct > 20 ? "text-warn" : "text-ink-muted"
-                    }`}
-                  >
-                    {mergePct > 25 ? <AlertTriangle size={12} /> : null}
-                    Replaces ≈ {mergePct}% of the code's modules · level H restores ~30%
+                {style.logoMode === "stitch" ? (
+                  <p className="flex items-center gap-1.5 text-[11px] font-bold text-ink-muted">
+                    No modules replaced — the full code is redrawn over the image
                   </p>
+                ) : (
+                  mergePct !== null && (
+                    <p
+                      className={`flex items-center gap-1.5 text-[11px] font-bold ${
+                        mergePct > 25 ? "text-danger" : mergePct > 20 ? "text-warn" : "text-ink-muted"
+                      }`}
+                    >
+                      {mergePct > 25 ? <AlertTriangle size={12} /> : null}
+                      Replaces ≈ {mergePct}% of the code's modules · level H restores ~30%
+                    </p>
+                  )
                 )}
               </div>
             </div>
           )}
-          {style.logo && style.ec !== "H" && (
+          {style.logo && style.logoMode === "inlay" && style.ec !== "H" && (
             <p className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-danger">
-              <AlertTriangle size={12} /> A merged mark replaces data — switch error correction up to H.
+              <AlertTriangle size={12} /> An inlay replaces data — switch error correction up to H, or use Stitch.
             </p>
           )}
           {style.logo && logoWarning && (
@@ -357,9 +413,9 @@ export function StylePanel({
           )}
           {!style.logo && (
             <p className="mt-2 text-[10.5px] font-medium leading-snug text-ink-muted">
-              Upload a mark — or drop it right here — and it's woven into the matrix. The whole
-              logo becomes real modules (never cropped, never a sticker on top), and level H
-              restores the data underneath. Bold, high-contrast marks merge best.
+              Upload a mark — or drop it right here — and it's worked into the matrix, never pasted
+              on top. Stitch keeps every module in place over a fine halftone of the image; Inlay
+              turns the mark itself into modules.
             </p>
           )}
         </div>

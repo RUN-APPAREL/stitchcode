@@ -29,7 +29,7 @@ interface HistoryItem {
   style: StyleState;
   payload: string;
 }
-const HISTORY_KEY = "qrsmith:history";
+const HISTORY_KEY = "stitchcode:history";
 
 function timeAgo(ts: number): string {
   const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
@@ -116,9 +116,11 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
             <QrCode size={19} />
           </span>
           <span className="leading-none">
-            <span className="block font-display text-[17px] font-black tracking-tight">QRsmith</span>
+            <span className="block font-display text-[16px] font-black tracking-tight">
+              RUN <span className="text-accent2">STITCH</span>CODE
+            </span>
             <span className="block font-mono text-[8.5px] font-bold uppercase tracking-[0.28em] text-ink-muted">
-              code studio
+              qr code studio
             </span>
           </span>
         </a>
@@ -210,12 +212,12 @@ function Stat({ n, label, delay }: { n: number; label: string; delay: number }) 
 }
 
 const SPECIMEN_PRESETS = [
-  { id: "link", label: "Link", payload: "https://qrsmith.studio" },
+  { id: "link", label: "Link", payload: "https://stitchcode.run" },
   { id: "wifi", label: "Wi-Fi", payload: "WIFI:T:WPA;S:Studio-Guest;P:hello123;;" },
   {
     id: "card",
     label: "Contact",
-    payload: "BEGIN:VCARD\nVERSION:3.0\nN:Smith;Ada;;;\nFN:Ada Smith\nORG:QRsmith\nEND:VCARD",
+    payload: "BEGIN:VCARD\nVERSION:3.0\nN:Smith;Ada;;;\nFN:Ada Smith\nORG:Stitchcode\nEND:VCARD",
   },
 ] as const;
 
@@ -231,7 +233,7 @@ function Opener() {
 
   const watermark = useMemo(() => {
     const m = createMatrix(
-      "https://qrsmith.studio/field-manual?batch=2026&press=offset&substrate=kraft",
+      "https://stitchcode.run/field-manual?batch=2026&press=offset&substrate=kraft",
       "H",
     );
     return renderSVG(m, toRenderOptions(DEFAULT_STYLE, null, 0, "transparent"), 560);
@@ -297,9 +299,9 @@ function Opener() {
             every time.
           </h1>
           <p className="mt-6 max-w-[440px] text-[15px] font-semibold leading-relaxed text-ink-dim">
-            QRsmith encodes, styles and proofs your QR codes entirely in-browser — with a live
-            scan-safety report that enforces quiet zones, contrast and error correction before
-            anything hits the press.
+            Stitchcode encodes, styles and proofs your QR codes entirely in-browser — stitching
+            logos straight into the matrix, with a live scan-safety report that enforces quiet
+            zones, contrast and error correction before anything hits the press.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3.5">
             <Pill onClick={() => document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" })}>
@@ -408,10 +410,15 @@ function Workbench() {
   const { grid: logoGrid, n: logoN, warning: logoWarning } = useLogoGrid(
     style.logo,
     matrix,
-    style.logoScale,
-    style.logoThreshold,
-    style.logoEdge === "dither",
-    style.bg,
+    {
+      scale: style.logoScale,
+      threshold: style.logoThreshold,
+      dither: style.logoEdge === "dither",
+      bg: style.bg,
+      mode: style.logoMode,
+      brightness: style.logoBrightness,
+      contrast: style.logoContrast,
+    },
   );
 
   /* how much of the code the merged mark currently replaces */
@@ -482,7 +489,7 @@ function Workbench() {
     toast("info", "History cleared");
   };
 
-  const filenameBase = `qrsmith-${type}-${summarize(type, forms).toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24) || "code"}`;
+  const filenameBase = `stitchcode-${type}-${summarize(type, forms).toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24) || "code"}`;
 
   return (
     <section id="studio" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-16 sm:px-8">
@@ -612,7 +619,9 @@ function Footer() {
             <QrCode size={16} />
           </span>
           <div>
-            <span className="block font-display text-[15px] font-black tracking-tight">QRsmith</span>
+            <span className="block font-display text-[15px] font-black tracking-tight">
+              RUN <span className="text-accent">STITCH</span>CODE
+            </span>
             <span className="block font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-bg/50">
               built local-first
             </span>

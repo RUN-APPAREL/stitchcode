@@ -69,7 +69,7 @@ export function Checklist() {
           <rect x="45.5" y="45.5" width="9" height="9" fill="currentColor" transform="rotate(45 50 50)" />
         </svg>
         <p className="max-w-[300px] text-[13.5px] font-semibold leading-relaxed text-ink-dim">
-          Distilled from the print standard and a decade of failed labels — the same checks QRsmith runs live while you build.
+          Distilled from the print standard and a decade of failed labels — the same checks Stitchcode runs live while you build.
         </p>
       </Reveal>
 
@@ -101,15 +101,15 @@ export function Checklist() {
 const FAQS = [
   {
     q: "Are my codes generated on a server?",
-    a: "No. QRsmith is 100% local-first — encoding, styling and export all happen in your browser with a fully spec-compliant engine. Nothing you type ever leaves the device, which is why the tool works fully offline.",
+    a: "No. Stitchcode is 100% local-first — encoding, styling and export all happen in your browser with a fully spec-compliant engine. Nothing you type ever leaves the device, which is why the tool works fully offline.",
   },
   {
     q: "How big can I print my code?",
     a: "As large as you like. The SVG export is true vector, so a billboard is as sharp as a business card. For PNG, pick 2048px for large-format work and check the 300-DPI size readout under the proof.",
   },
   {
-    q: "How does the logo merge work?",
-    a: "Your mark isn't layered on top — it's rasterised into the matrix, so its dark pixels become real dark modules and its light pixels become the field. The whole logo always fits (it's never cropped), and a dithering pass keeps gradients and thin strokes legible at QR resolution. Level H error correction is enforced because those centre modules replace data; the live readout shows the exact percentage replaced, and anything above the ~25% safe limit is flagged.",
+    q: "How does the logo get into the code?",
+    a: "Two techniques, never a sticker on top. Stitch dithers your image at 3× the module grid into a fine halftone, then redraws the complete code over it — every module stays in place, so it scans at any error-correction level and is the safest choice for photos. Inlay pixelates the mark into real modules that replace the data underneath — level H restores what's lost, and the live readout flags anything past the ~25% safe limit.",
   },
   {
     q: "Why does the app insist on a light background?",
@@ -117,7 +117,7 @@ const FAQS = [
   },
   {
     q: "What's the quiet zone, really?",
-    a: "It's the empty margin that tells a scanner where the code begins. The standard sets it at four modules minimum; QRsmith measures yours live and warns the moment you dip below spec.",
+    a: "It's the empty margin that tells a scanner where the code begins. The standard sets it at four modules minimum; Stitchcode measures yours live and warns the moment you dip below spec.",
   },
 ];
 

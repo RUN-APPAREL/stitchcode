@@ -3,16 +3,30 @@ import { gridDarkFraction, logoRegionModules, logoToGrid, type QRMatrix } from "
 
 export interface LogoGridState {
   grid: Uint8Array | null;
-  /** grid resolution in modules */
+  /** region width in modules */
   n: number;
-  /** human-readable diagnostic when the mark can't produce a visible merge */
+  /** sub-pixels per module inside `grid` (stitch: 3, inlay: 1) */
+  res: number;
+  /** diagnostic message when the mark can't produce a usable merge */
   warning: string | null;
 }
 
+export interface LogoGridParams {
+  scale: number;
+  threshold: number;
+  dither: boolean;
+  bg: string;
+  mode: "stitch" | "inlay";
+  brightness: number;
+  contrast: number;
+}
+
+const IDLE: LogoGridState = { grid: null, n: 0, res: 1, warning: null };
+
 /**
- * Rasterises the uploaded logo into a binary module grid sized to the
- * current code. Re-runs whenever the image, code size, merge size,
- * threshold, dither mode or background colour changes.
+ * Rasterises the uploaded logo into a binary grid sized to the current code.
+ * "Stitch" mode rasterises at 3× the module grid (sub-module halftone);
+ * "inlay" works at module resolution. Re-runs whenever any input changes.
  *
  * A monotonically increasing request id guards against out-of-order
  * resolutions: if a newer rasterisation is requested before an older one
@@ -21,44 +35,45 @@ export interface LogoGridState {
 export function useLogoGrid(
   logo: string | null,
   matrix: QRMatrix | null,
-  scale: number,
-  threshold: number,
-  dither: boolean,
-  bg: string,
+  p: LogoGridParams,
 ): LogoGridState {
-  const [state, setState] = useState<LogoGridState>({ grid: null, n: 0, warning: null });
+  const [state, setState] = useState<LogoGridState>(IDLE);
   const reqId = useRef(0);
 
   useEffect(() => {
     const id = ++reqId.current;
     if (!logo || !matrix) {
-      setState({ grid: null, n: 0, warning: null });
+      setState(IDLE);
       return;
     }
-    const n = logoRegionModules(matrix.size, scale);
-    logoToGrid(logo, n, threshold, bg, dither)
+    const n = logoRegionModules(matrix.size, p.scale);
+    const res = p.mode === "stitch" ? 3 : 1;
+    logoToGrid(logo, n, p.threshold, p.bg, p.dither, {
+      res,
+      brightness: p.brightness,
+      contrast: p.contrast,
+    })
       .then((grid) => {
         if (reqId.current !== id) return;
-        /*
-         * An all-light grid merges to pure field colour — the mark would be
-         * invisible. Surface a diagnostic instead of failing silently.
-         */
-        const frac = gridDarkFraction(grid);
-        const warning =
-          frac < 0.02
-            ? "No ink detected — the mark reads as white or transparent against the field. Use a darker image, or lower the ink threshold."
-            : null;
-        setState({ grid, n, warning });
+        const dark = gridDarkFraction(grid);
+        setState({
+          grid,
+          n,
+          res,
+          warning:
+            dark < 0.02
+              ? "This mark reads as almost white at the current settings — it will be invisible in the code. Try a darker image, or lower the ink threshold and brightness."
+              : null,
+        });
       })
       .catch(() => {
         if (reqId.current === id)
           setState({
-            grid: null,
-            n: 0,
-            warning: "That image couldn't be read — try a PNG, JPG or SVG file.",
+            ...IDLE,
+            warning: "Couldn't read that image file — try a different PNG or SVG.",
           });
       });
-  }, [logo, matrix, scale, threshold, dither, bg]);
+  }, [logo, matrix, p.scale, p.threshold, p.dither, p.bg, p.mode, p.brightness, p.contrast]);
 
   return state;
 }

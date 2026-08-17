@@ -53,7 +53,7 @@ export const THEMES: ThemeMeta[] = [
   },
 ];
 
-const KEY = "qrsmith:theme";
+const KEY = "stitchcode:theme";
 
 export function getInitialTheme(): ThemeId {
   try {
