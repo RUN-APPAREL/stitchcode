@@ -1,0 +1,3 @@
+# RUN STITCHCODE — everything here is friendly to crawlers
+User-agent: *
+Allow: /

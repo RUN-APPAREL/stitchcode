@@ -1,0 +1,50 @@
+name: 🐞 Bug report
+description: Something is broken or looks wrong. No coding knowledge needed!
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for finding a bug! Answer what you can — pictures help a lot.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: In plain words — what did you see?
+      placeholder: "I pressed Download PNG and nothing happened…"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+      placeholder: "I expected the picture to download."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to make it happen again
+      placeholder: |
+        1. Open the studio
+        2. Choose Wi-Fi
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Which browser?
+      options:
+        - Chrome / Edge
+        - Firefox
+        - Safari
+        - A phone browser
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: pictures
+    attributes:
+      label: Pictures or screen recordings (optional but gold)
+      description: Drag images into this box.

@@ -1,0 +1,23 @@
+# ------------------------------------------------------------------
+# One-command self-hosting:
+#
+#   docker compose up --build      → http://localhost:8080
+#
+# Or skip building entirely with the published image:
+#
+#   docker run -p 8080:80 ghcr.io/OWNER/stitchcode
+# ------------------------------------------------------------------
+services:
+  stitchcode:
+    build: .
+    image: stitchcode:local
+    container_name: stitchcode
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true
