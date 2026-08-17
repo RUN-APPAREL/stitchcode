@@ -322,7 +322,7 @@ export function StylePanel({
                 <div>
                   <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
                     Mix style
-                    <Tip text="'Behind the code' keeps every part of the code on top of your picture, so it always scans — safe at any size. 'Into the code' lets your picture replace some of the dots — bolder look, but keep it smaller." />
+                    <Tip text="'Behind the code' keeps every part of the code on top of your picture, so it always scans — safe at any size, even 100%. 'Into the code' lets your picture replace some of the dots — bolder look, but keep it smaller. Either way, the code's special squares (the corners, rings and timing lines) are never touched." />
                   </span>
                   <Seg<"stitch" | "inlay">
                     value={style.logoMode}

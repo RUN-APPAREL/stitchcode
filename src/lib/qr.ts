@@ -293,10 +293,11 @@ export function alignmentCenters(version: number): Array<[number, number]> {
 }
 
 export function inFinderRegion(x: number, y: number, size: number): boolean {
+  /* 7×7 finder plus its 1-module light separator ring */
   return (
-    (x < 7 && y < 7) ||
-    (x >= size - 7 && y < 7) ||
-    (x < 7 && y >= size - 7)
+    (x < 8 && y < 8) ||
+    (x >= size - 8 && y < 8) ||
+    (x < 8 && y >= size - 8)
   );
 }
 
@@ -308,9 +309,44 @@ function inAlignmentRegion(
   return centers.some(([cx, cy]) => Math.abs(x - cx) <= 2 && Math.abs(y - cy) <= 2);
 }
 
-/** Functional patterns always render as solid squares for scan safety. */
+/**
+ * Version-information blocks — two 3×6 strips present on version 7 and up
+ * (size ≥ 45), tucked beside the top-right and bottom-left finders. They
+ * carry NO error correction, so a merge that disturbs them kills the code
+ * outright; they must always be left exactly as the encoder wrote them.
+ */
+function inVersionRegion(x: number, y: number, size: number): boolean {
+  if (size < 45) return false;
+  return (
+    (y <= 5 && x >= size - 11 && x <= size - 9) ||
+    (x <= 5 && y >= size - 11 && y <= size - 9)
+  );
+}
+
+/**
+ * Format-information rings around the three finders (row/column 8) plus the
+ * single fixed dark module at (8, 4·version + 9). Format bits have BCH
+ * protection and a second copy, but preserving them costs nothing.
+ */
+function inFormatRegion(x: number, y: number, size: number): boolean {
+  const darkModuleY = size - 8; /* 4·version + 9, since size = 4·version + 17 */
+  return (
+    (y === 8 && (x <= 8 || x >= size - 8)) ||
+    (x === 8 && (y <= 8 || y >= size - 7)) ||
+    (x === 8 && y === darkModuleY)
+  );
+}
+
+/** Functional patterns — always preserved intact, rendered solid. */
 function isFunctional(x: number, y: number, size: number, centers: Array<[number, number]>): boolean {
-  return inFinderRegion(x, y, size) || inAlignmentRegion(x, y, centers) || x === 6 || y === 6;
+  return (
+    inFinderRegion(x, y, size) ||
+    inAlignmentRegion(x, y, centers) ||
+    inVersionRegion(x, y, size) ||
+    inFormatRegion(x, y, size) ||
+    x === 6 ||
+    y === 6
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -335,14 +371,15 @@ function finderSVG(ox: number, oy: number, o: QRRenderOptions): string {
  * Logo pass. Two philosophies:
  *
  * INLAY — the mark's cells replace the data modules (dark cell → dark module,
- * light cell → field). Finder zones are never touched; a central alignment
- * pattern may be absorbed (level H covers the loss — the same trade-off every
- * branded QR makes).
+ * light cell → field). Every functional pattern — finders, separators,
+ * alignment, timing, format rings, version blocks and the dark module — is
+ * skipped and stays exactly as the encoder wrote it, because those patterns
+ * have little or no error correction. Only true data modules are swapped.
  *
  * STITCH — the mark is dithered at `logoRes`× the module grid and laid down
  * first; then the *complete* code is repainted over it: functional patterns
- * (alignment, timing) as solid squares, data modules as centred dots. Nothing
- * is erased, so the code stays scannable at any error-correction level.
+ * as solid squares, data modules as centred dots. Nothing is erased, so the
+ * code stays scannable at any error-correction level.
  */
 function mergedLogoSVG(
   m: QRMatrix,
@@ -352,10 +389,15 @@ function mergedLogoSVG(
 ): string {
   if (!o.logoGrid || o.logoN < 3 || o.logoN > m.size) return "";
   if (o.logoMode === "stitch") return stitchLogoSVG(m, o, centers, mg);
-  return inlayLogoSVG(m, o, mg);
+  return inlayLogoSVG(m, o, centers, mg);
 }
 
-function inlayLogoSVG(m: QRMatrix, o: QRRenderOptions, mg: number): string {
+function inlayLogoSVG(
+  m: QRMatrix,
+  o: QRRenderOptions,
+  centers: Array<[number, number]>,
+  mg: number,
+): string {
   const region = o.logoN;
   if (!o.logoGrid || o.logoGrid.length !== region * region) return "";
   const ox = Math.floor((m.size - region) / 2);
@@ -364,7 +406,7 @@ function inlayLogoSVG(m: QRMatrix, o: QRRenderOptions, mg: number): string {
     for (let i = 0; i < region; i++) {
       const x = ox + i;
       const y = ox + j;
-      if (inFinderRegion(x, y, m.size)) continue;
+      if (isFunctional(x, y, m.size, centers)) continue;
       const dark = o.logoGrid[j * region + i] === 1;
       out += `<rect x="${mg + x}" y="${mg + y}" width="1" height="1" fill="${
         dark ? o.fg : o.bg
@@ -607,7 +649,8 @@ export async function renderCanvas(
           for (let i = 0; i < region; i++) {
             const x = ox + i;
             const y = ox + j;
-            if (inFinderRegion(x, y, m.size)) continue;
+            /* only true data modules may be swapped — functional patterns stay intact */
+            if (isFunctional(x, y, m.size, centers)) continue;
             const dark = o.logoGrid[j * region + i] === 1;
             ctx.fillStyle = dark ? o.fg : o.bg;
             ctx.fillRect((x + o.margin) * s, (y + o.margin) * s, s + 0.5, s + 0.5);
