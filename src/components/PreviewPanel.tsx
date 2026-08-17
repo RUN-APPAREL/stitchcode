@@ -14,11 +14,11 @@ import { toRenderOptions, type StyleState } from "./StylePanel";
 import { IndustrialCard, PassFail, Pill, SpecCell, Tele, useToast } from "./ui";
 
 const SUBSTRATES = [
-  { id: "white", label: "White", cls: "sub-white", color: "#ffffff" },
-  { id: "kraft", label: "Kraft", cls: "sub-kraft", color: "#bd8a52" },
-  { id: "knit", label: "Poly Knit", cls: "sub-knit", color: "#dfe3e7" },
-  { id: "cotton", label: "Woven Cotton", cls: "sub-cotton", color: "#efebe0" },
-  { id: "nylon", label: "Nylon", cls: "sub-nylon", color: "#d3d9e1" },
+  { id: "white", label: "White", finish: "matte", cls: "sub-white", color: "#ffffff" },
+  { id: "kraft", label: "Kraft", finish: "240 gsm", cls: "sub-kraft", color: "#bd8a52" },
+  { id: "knit", label: "Poly Knit", finish: "heather", cls: "sub-knit", color: "#dfe3e7" },
+  { id: "cotton", label: "Woven Cotton", finish: "natural", cls: "sub-cotton", color: "#efebe0" },
+  { id: "nylon", label: "Nylon", finish: "ripstop", cls: "sub-nylon", color: "#d3d9e1" },
 ] as const;
 type SubstrateId = (typeof SUBSTRATES)[number]["id"];
 
@@ -206,7 +206,12 @@ export function PreviewPanel({
         </div>
 
         {/* QR viewport on substrate */}
-        <div className={`relative mx-5 mt-3.5 flex items-center justify-center rounded-[12px] border-[1.5px] border-ink p-6 ${sub.cls}`}>
+        <div
+          className={`scan-sweep relative mx-5 mt-3.5 flex items-center justify-center overflow-hidden rounded-[12px] border-[1.5px] border-ink p-6 ${sub.cls}`}
+        >
+          <span className="absolute left-3 top-3 z-[2] -rotate-2 border border-ink/25 bg-surface/85 px-2 py-[3px] font-mono text-[8.5px] font-bold uppercase tracking-[0.16em] text-ink-dim">
+            on {sub.label.toLowerCase()} · {sub.finish}
+          </span>
           {matrix ? (
             <div
               key={`${payload.length}:${payload}:${style.fg}:${style.margin}:${style.dotStyle}:${style.cornerStyle}:${style.ec}:${style.logoScale}:${style.logoThreshold}:${style.logoEdge}:${logoN}:${printed.length}`}

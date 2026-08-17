@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, MotionConfig } from "motion/react";
+import { motion, MotionConfig, animate } from "motion/react";
 import { QrCode, WifiOff, History, Trash2, RotateCcw, ArrowDown, ScanLine } from "lucide-react";
 import {
   THEMES,
@@ -166,14 +166,97 @@ function Header({ theme, onTheme }: { theme: ThemeId; onTheme: (t: ThemeId) => v
 /* ------------------------------------------------------------------ */
 /* Opener — characteristic of the subject                              */
 /* ------------------------------------------------------------------ */
+function Stat({ n, label, delay }: { n: number; label: string; delay: number }) {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setV(n);
+      return;
+    }
+    const controls = animate(0, n, {
+      duration: 0.8,
+      delay,
+      ease: "easeOut",
+      onUpdate: (x) => setV(Math.round(x)),
+    });
+    return () => controls.stop();
+  }, [n, delay]);
+  return (
+    <div className="rounded-[12px] border-[1.5px] border-ink bg-surface px-4 py-3 shadow-brutal-sm">
+      <span className="block font-display text-[26px] font-black leading-none text-accent2">
+        {v}
+      </span>
+      <span className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+const SPECIMEN_PRESETS = [
+  { id: "link", label: "Link", payload: "https://qrsmith.studio" },
+  { id: "wifi", label: "Wi-Fi", payload: "WIFI:T:WPA;S:Studio-Guest;P:hello123;;" },
+  {
+    id: "card",
+    label: "Contact",
+    payload: "BEGIN:VCARD\nVERSION:3.0\nN:Smith;Ada;;;\nFN:Ada Smith\nORG:QRsmith\nEND:VCARD",
+  },
+] as const;
+
 function Opener() {
+  const [spec, setSpec] = useState<string>("link");
+  const cardRef = useRef<HTMLDivElement>(null);
+
   const sample = useMemo(() => {
-    const m = createMatrix("https://qrsmith.studio", "Q");
+    const preset = SPECIMEN_PRESETS.find((p) => p.id === spec) ?? SPECIMEN_PRESETS[0];
+    const m = createMatrix(preset.payload, "H");
     return renderSVG(m, toRenderOptions(DEFAULT_STYLE, null, 0, "transparent"), 420);
+  }, [spec]);
+
+  const watermark = useMemo(() => {
+    const m = createMatrix(
+      "https://qrsmith.studio/field-manual?batch=2026&press=offset&substrate=kraft",
+      "H",
+    );
+    return renderSVG(m, toRenderOptions(DEFAULT_STYLE, null, 0, "transparent"), 560);
+  }, []);
+
+  /* tactile pointer-tilt on the specimen card */
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        card.style.transform = `perspective(900px) rotateY(${(px * 9).toFixed(2)}deg) rotateX(${(
+          -py * 9
+        ).toFixed(2)}deg)`;
+      });
+    };
+    const onLeave = () => {
+      card.style.transform = "";
+    };
+    window.addEventListener("pointermove", onMove);
+    card.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      card.removeEventListener("pointerleave", onLeave);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
     <section id="top" className="relative overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-28 -top-16 hidden w-[460px] opacity-[0.055] lg:block"
+      >
+        <div className="qr-live rotate-12" dangerouslySetInnerHTML={{ __html: watermark }} />
+      </div>
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:pt-20">
         <Reveal>
           <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -214,18 +297,9 @@ function Opener() {
             </Pill>
           </div>
           <div className="mt-10 grid max-w-[440px] grid-cols-3 gap-3">
-            {[
-              ["7", "content types"],
-              ["5", "print previews"],
-              ["0", "data sent out"],
-            ].map(([n, l]) => (
-              <div key={l} className="rounded-[12px] border-[1.5px] border-ink bg-surface px-4 py-3 shadow-brutal-sm">
-                <span className="block font-display text-[26px] font-black leading-none text-accent2">{n}</span>
-                <span className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-ink-muted">
-                  {l}
-                </span>
-              </div>
-            ))}
+            <Stat n={7} label="content types" delay={0.5} />
+            <Stat n={5} label="print previews" delay={0.65} />
+            <Stat n={0} label="data sent out" delay={0.8} />
           </div>
         </Reveal>
 
@@ -239,15 +313,41 @@ function Opener() {
             style={{ ["--fl-rot" as string]: "-4deg" }}
           >
             <div className="absolute -left-8 top-10 h-full w-full rounded-[16px] border-[1.5px] border-ink bg-accent2" />
-            <div className="relative overflow-hidden rounded-[16px] border-[1.5px] border-ink bg-white p-7 shadow-brutal">
+            <div
+              ref={cardRef}
+              className="relative overflow-hidden rounded-[16px] border-[1.5px] border-ink bg-white p-7 shadow-brutal will-change-transform"
+            >
               <div className="mb-4 flex items-center justify-between">
-                <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-                  live preview
+                <span className="flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                  <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[#2e7d32]" />
+                  encoding ·{" "}
+                  {SPECIMEN_PRESETS.find((p) => p.id === spec)?.label.toLowerCase() ?? "link"}
                 </span>
                 <span className="h-2.5 w-2.5 rotate-45 bg-accent" />
               </div>
-              <div className="qr-live" dangerouslySetInnerHTML={{ __html: sample }} />
-              <div className="mt-4 flex items-center justify-between border-t border-dashed border-neutral-200 pt-3">
+              <div
+                key={spec}
+                className="qr-live qr-pop"
+                dangerouslySetInnerHTML={{ __html: sample }}
+              />
+              <div className="mt-4 flex items-center justify-center gap-1.5">
+                {SPECIMEN_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSpec(p.id)}
+                    aria-pressed={spec === p.id}
+                    className={`rounded-full border-[1.5px] px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] transition-all ${
+                      spec === p.id
+                        ? "border-ink bg-ink text-white shadow-brutal-accent"
+                        : "border-neutral-300 text-neutral-500 hover:border-ink hover:text-neutral-800"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3.5 flex items-center justify-between border-t border-dashed border-neutral-200 pt-3">
                 <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-neutral-500">
                   clear margins
                 </span>
@@ -455,6 +555,16 @@ function Workbench() {
                 </div>
               );
             })}
+          </div>
+        </Reveal>
+      )}
+      {history.length === 0 && (
+        <Reveal className="mt-10">
+          <div className="flex items-center gap-3 rounded-[12px] border-[1.5px] border-dashed border-line bg-surface2/40 px-5 py-4">
+            <History size={16} className="shrink-0 text-accent2" />
+            <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-muted">
+              Your builds will land here — autosaved on this device only
+            </p>
           </div>
         </Reveal>
       )}
