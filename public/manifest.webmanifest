@@ -1,0 +1,28 @@
+{
+  "name": "RUN STITCHCODE — QR Code Studio",
+  "short_name": "Stitchcode",
+  "description": "A 100% offline QR code studio. Stitch a logo into the matrix, proof it on real print materials, and export PNG or SVG — everything stays on your device.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#F0EEDF",
+  "theme_color": "#1C1C1A",
+  "categories": ["productivity", "utilities", "education"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

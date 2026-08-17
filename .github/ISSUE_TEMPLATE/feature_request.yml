@@ -1,0 +1,30 @@
+name: 💡 Idea
+description: Suggest something new for the studio.
+labels: [idea]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea? Wonderful — the best features start as small wishes.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What is the idea?
+      description: One or two sentences. A little sketch or doodle is even better!
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Who does it help, and why?
+      placeholder: "It helps people who print codes for school fairs because…"
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: How big does it feel?
+      options:
+        - Tiny (a button or a word)
+        - Medium (a new control)
+        - Big (a whole new section)

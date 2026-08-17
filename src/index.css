@@ -1,0 +1,385 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* Design tokens — mapped to live CSS variables so themes hot-swap     */
+/* ------------------------------------------------------------------ */
+@theme inline {
+  --color-bg: var(--t-bg);
+  --color-surface: var(--t-surface);
+  --color-surface2: var(--t-surface2);
+  --color-ink: var(--t-ink);
+  --color-ink-dim: var(--t-ink-dim);
+  --color-ink-muted: var(--t-ink-muted);
+  --color-line: var(--t-line);
+  --color-line-soft: var(--t-line-soft);
+  --color-accent: var(--t-accent);
+  --color-accent-ink: var(--t-accent-ink);
+  --color-accent2: var(--t-accent2);
+  --color-glow: var(--t-glow);
+  --color-ok: var(--t-ok);
+  --color-warn: var(--t-warn);
+  --color-danger: var(--t-danger);
+
+  --font-display: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-body: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --shadow-brutal: 4px 4px 0 0 var(--t-ink);
+  --shadow-brutal-sm: 2.5px 2.5px 0 0 var(--t-ink);
+  --shadow-brutal-accent: 4px 4px 0 0 var(--t-accent);
+}
+
+/* Semantic tokens shared across every palette (tuned for ≥ 4.5:1 on light fields) */
+:root {
+  --t-ok: #0f7a4b;
+  --t-warn: #9a5b00;
+  --t-danger: #b33632;
+}
+
+/* ---------------------- 1 · Comelea Alpine (default) ---------------- */
+:root,
+[data-theme="alpine"] {
+  --t-bg: #f0eedf;
+  --t-surface: #f9f7ea;
+  --t-surface2: #e7e4d2;
+  --t-ink: #1c1c1a;
+  --t-ink-dim: #4b4b43;
+  --t-ink-muted: #807f72;
+  --t-line: rgba(28, 28, 26, 0.28);
+  --t-line-soft: rgba(28, 28, 26, 0.12);
+  --t-accent: #fe492a;
+  --t-accent-ink: #fff6f0;
+  --t-accent2: #16336f;
+  --t-glow: rgba(254, 73, 42, 0.4);
+  color-scheme: light;
+}
+
+/* ---------------------- 2 · Teal Wave & Lagoon ---------------------- */
+[data-theme="teal"] {
+  --t-bg: #d9faf4;
+  --t-surface: #ecfdf9;
+  --t-surface2: #c2f0e7;
+  --t-ink: #0f2a2a;
+  --t-ink-dim: #33514e;
+  --t-ink-muted: #63807b;
+  --t-line: rgba(15, 42, 42, 0.3);
+  --t-line-soft: rgba(15, 42, 42, 0.13);
+  --t-accent: #00bfa6;
+  --t-accent-ink: #04211c;
+  --t-accent2: #0f5c52;
+  --t-glow: rgba(0, 191, 166, 0.42);
+  color-scheme: light;
+}
+
+/* ---------------------- 3 · Fresh Mint & Pine Shadow ---------------- */
+[data-theme="mint"] {
+  --t-bg: #dff8eb;
+  --t-surface: #effcf4;
+  --t-surface2: #c9eedd;
+  --t-ink: #132a22;
+  --t-ink-dim: #3a5447;
+  --t-ink-muted: #678574;
+  --t-line: rgba(19, 42, 34, 0.3);
+  --t-line-soft: rgba(19, 42, 34, 0.13);
+  --t-accent: #19c37d;
+  --t-accent-ink: #042315;
+  --t-accent2: #1d5c41;
+  --t-glow: rgba(25, 195, 125, 0.42);
+  color-scheme: light;
+}
+
+/* ---------------------- 4 · Spring Chartreuse (MP076) --------------- */
+[data-theme="chartreuse"] {
+  --t-bg: #f6f7ed;
+  --t-surface: #fbfcf4;
+  --t-surface2: #e6e8d9;
+  --t-ink: #001f3f;
+  --t-ink-dim: #33506b;
+  --t-ink-muted: #6f8095;
+  --t-line: rgba(0, 31, 63, 0.3);
+  --t-line-soft: rgba(0, 31, 63, 0.12);
+  --t-accent: #dbe64c;
+  --t-accent-ink: #1a2405;
+  --t-accent2: #1e488f;
+  --t-glow: rgba(219, 230, 76, 0.55);
+  color-scheme: light;
+}
+
+/* ---------------------- 5 · Midnight Cinnabar ----------------------- */
+[data-theme="cinnabar"] {
+  --t-bg: #faf5f5;
+  --t-surface: #fefbfa;
+  --t-surface2: #efe4e2;
+  --t-ink: #191815;
+  --t-ink-dim: #4a4844;
+  --t-ink-muted: #7e7b75;
+  --t-line: rgba(25, 24, 21, 0.3);
+  --t-line-soft: rgba(25, 24, 21, 0.12);
+  --t-accent: #e84528;
+  --t-accent-ink: #fff4f0;
+  --t-accent2: #005151;
+  --t-glow: rgba(232, 69, 40, 0.4);
+  color-scheme: light;
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+html {
+  scroll-behavior: smooth;
+}
+body {
+  background-color: var(--t-bg);
+  color: var(--t-ink);
+  font-family: var(--font-body);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.45s ease, color 0.45s ease;
+  overflow-x: hidden;
+}
+::selection {
+  background: var(--t-accent);
+  color: var(--t-accent-ink);
+}
+:focus-visible {
+  outline: 2px solid var(--t-ink);
+  outline-offset: 2px;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--t-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--t-line);
+  border-radius: 999px;
+  border: 2px solid var(--t-bg);
+}
+
+/* The live SVG always fills its frame */
+.qr-live svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Print proof sheet — only the paper prints, the studio stays home */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  .app-shell {
+    display: none !important;
+  }
+  .print-overlay {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .print-toolbar {
+    display: none !important;
+  }
+  .print-paper {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .print-paper,
+  .print-paper * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Range sliders — themed, tactile thumbs */
+.qr-slider {
+  background: var(--t-surface2);
+  border: 1px solid var(--t-line);
+}
+.qr-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 999px;
+  background: var(--t-accent);
+  border: 2px solid var(--t-ink);
+  box-shadow: 2px 2px 0 0 var(--t-ink);
+  cursor: grab;
+  transition: transform 0.15s ease;
+}
+.qr-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+.qr-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(0.94);
+}
+.qr-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 999px;
+  background: var(--t-accent);
+  border: 2px solid var(--t-ink);
+  box-shadow: 2px 2px 0 0 var(--t-ink);
+  cursor: grab;
+}
+
+/* ------------------------------------------------------------------ */
+/* Ambient background layers                                           */
+/* ------------------------------------------------------------------ */
+.bg-blueprint {
+  background-image: linear-gradient(var(--t-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--t-line-soft) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 45%, transparent 85%);
+}
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------------------ */
+/* Substrate simulation (print materials)                              */
+/* ------------------------------------------------------------------ */
+.sub-white {
+  background: #ffffff;
+}
+.sub-kraft {
+  background-color: #c9995f;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    repeating-linear-gradient(93deg, rgba(120, 72, 30, 0.12) 0 2px, transparent 2px 5px),
+    linear-gradient(160deg, #d2a268, #b8844d);
+  background-size: 7px 7px, auto, auto;
+}
+.sub-knit {
+  background-color: #e3e6e9;
+  background-image: repeating-linear-gradient(45deg, rgba(116, 125, 136, 0.24) 0 3px, transparent 3px 7px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.55) 0 3px, transparent 3px 7px);
+}
+.sub-cotton {
+  background-color: #f3efe5;
+  background-image: repeating-linear-gradient(0deg, rgba(150, 139, 118, 0.15) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(90deg, rgba(150, 139, 118, 0.12) 0 2px, transparent 2px 6px);
+}
+.sub-nylon {
+  background-color: #d7dce3;
+  background-image: linear-gradient(115deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 38%, rgba(118, 129, 145, 0.28) 75%, rgba(255, 255, 255, 0.4) 100%),
+    repeating-linear-gradient(90deg, rgba(140, 150, 166, 0.14) 0 2px, transparent 2px 4px);
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion keyframes                                                    */
+/* ------------------------------------------------------------------ */
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(var(--fl-rot, 0deg)); }
+  50% { transform: translateY(-12px) rotate(var(--fl-rot, 0deg)); }
+}
+.animate-floaty {
+  animation: floaty 6.5s ease-in-out infinite;
+}
+@keyframes popin {
+  0% { transform: scale(0.82); opacity: 0; }
+  60% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.qr-pop {
+  animation: popin 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--t-glow); }
+  50% { opacity: 0.55; box-shadow: 0 0 0 5px transparent; }
+}
+.pulse-dot {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 26s linear infinite;
+  transform-origin: 50% 50%;
+}
+/* Slow ambient drift for the watermark code */
+@keyframes drift {
+  0% { transform: rotate(10deg) translateY(0); }
+  100% { transform: rotate(15deg) translateY(-16px); }
+}
+.animate-drift {
+  animation: drift 11s ease-in-out infinite alternate;
+}
+/* Periodic scan sweep across the live proof */
+@keyframes scan-sweep {
+  0% { top: -20%; opacity: 0; }
+  7% { opacity: 1; }
+  24% { top: 104%; opacity: 0; }
+  100% { top: 104%; opacity: 0; }
+}
+.scan-sweep::after {
+  content: "";
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  height: 20%;
+  border-radius: 999px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--t-accent2) 32%, transparent),
+    transparent
+  );
+  animation: scan-sweep 7.5s ease-in-out 2.4s infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  opacity: 0;
+}
+.reveal.is-in {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Staggered children inside a revealed block */
+.stagger > * {
+  opacity: 0;
+}
+.stagger.is-in > * {
+  animation: rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger.is-in > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger.is-in > *:nth-child(2) { animation-delay: 0.12s; }
+.stagger.is-in > *:nth-child(3) { animation-delay: 0.2s; }
+.stagger.is-in > *:nth-child(4) { animation-delay: 0.28s; }
+.stagger.is-in > *:nth-child(5) { animation-delay: 0.36s; }
+.stagger.is-in > *:nth-child(6) { animation-delay: 0.44s; }
+.stagger.is-in > *:nth-child(7) { animation-delay: 0.52s; }
+.stagger.is-in > *:nth-child(8) { animation-delay: 0.6s; }
+
+/* Respect OS motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-floaty,
+  .animate-spin-slow,
+  .animate-drift,
+  .qr-pop,
+  .pulse-dot,
+  .scan-sweep::after,
+  .reveal,
+  .reveal.is-in,
+  .stagger > *,
+  .stagger.is-in > * {
+    animation: none;
+    opacity: 1;
+  }
+}
