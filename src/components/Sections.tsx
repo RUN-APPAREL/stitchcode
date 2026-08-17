@@ -109,7 +109,7 @@ const FAQS = [
   },
   {
     q: "How does the logo get into the code?",
-    a: "Two techniques, never a sticker on top. Stitch dithers your image at 3× the module grid into a fine halftone, then redraws the complete code over it — every module stays in place, so it scans at any error-correction level; because nothing is destroyed it can even run full-bleed (100%) for a photo-QR look. Inlay pixelates the mark into real modules that replace the data underneath — level H restores what's lost, and the live readout flags anything past the ~25% safe limit.",
+    a: "Two techniques, never a sticker on top. Stitch dithers your image at 3× the module grid into a fine halftone, then redraws the complete code over it — every module stays in place, so it scans at any error-correction level; because nothing is destroyed it can even run full-bleed (100%) for a photo-QR look. Inlay pixelates the mark into real modules that replace the data underneath — level H restores what's lost, and the live readout flags anything past the ~25% safe limit. Either way, a real decode test scans every version back with an actual decoder, so you know it reads before you print.",
   },
   {
     q: "Why does the app insist on a light background?",

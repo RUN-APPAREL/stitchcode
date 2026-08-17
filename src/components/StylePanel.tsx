@@ -50,6 +50,8 @@ export interface StyleState {
   logoBrightness: number;
   /** contrast about the midpoint, after brightness (1 = unchanged) */
   logoContrast: number;
+  /** wash toward the stock colour, 0–0.6 */
+  logoFade: number;
   /**
    * How the mark's tones become modules: "dither" (Floyd–Steinberg,
    * photographic), "ordered" (Bayer halftone-screen, graphic), or "crisp"
@@ -72,6 +74,7 @@ export const DEFAULT_STYLE: StyleState = {
   logoThreshold: 0.5,
   logoBrightness: 1.3,
   logoContrast: 1.2,
+  logoFade: 0.25,
   logoEdge: "dither",
   exportPx: 1024,
 };
@@ -349,6 +352,25 @@ export function StylePanel({
                   onChange={(v) => patch({ logoScale: v / 100 })}
                   format={(v) => `${v}%`}
                 />
+                {style.logoMode === "stitch" && (
+                  <div className="-mt-1 flex items-center gap-1.5">
+                    {[25, 50, 75, 100].map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => patch({ logoScale: p / 100 })}
+                        aria-pressed={Math.round(style.logoScale * 100) === p}
+                        className={`rounded-full border-[1.5px] px-2.5 py-0.5 font-mono text-[9.5px] font-bold transition-all ${
+                          Math.round(style.logoScale * 100) === p
+                            ? "border-ink bg-ink text-surface shadow-brutal-accent"
+                            : "border-line text-ink-muted hover:border-ink hover:text-ink"
+                        }`}
+                      >
+                        {p === 100 ? "full" : `${p}%`}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <SliderRow
                   label="Ink threshold"
                   tip="The luminance midpoint: pixels darker than this become dark. With dithering on it acts like a halftone's exposure — tune it until the mark reads clearly."
@@ -377,6 +399,16 @@ export function StylePanel({
                   max={260}
                   step={5}
                   onChange={(v) => patch({ logoContrast: v / 100 })}
+                  format={(v) => `${v}%`}
+                />
+                <SliderRow
+                  label="Wash"
+                  tip="Fades the image toward the stock colour so the modules stay dominant. The single biggest readability lever for full-bleed photo codes — raise it until the decode test passes."
+                  value={Math.round(style.logoFade * 100)}
+                  min={0}
+                  max={60}
+                  step={5}
+                  onChange={(v) => patch({ logoFade: v / 100 })}
                   format={(v) => `${v}%`}
                 />
                 <div>

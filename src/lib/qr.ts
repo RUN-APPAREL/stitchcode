@@ -76,6 +76,13 @@ export interface LogoRasterOptions {
   brightness?: number;
   /** contrast about the 0.5 midpoint, applied after brightness (1 = unchanged) */
   contrast?: number;
+  /**
+   * "Wash": mixes luminance toward the stock colour (0 = none, 1 = pure
+   * stock). Fading the image toward the field is the single biggest
+   * readability lever for full-bleed photo codes — it keeps the modules
+   * dominant over busy imagery.
+   */
+  fade?: number;
 }
 
 /**
@@ -100,6 +107,9 @@ export async function logoToGrid(
   const N = n * res;
   const brightness = opts.brightness ?? 1;
   const contrast = opts.contrast ?? 1;
+  const fade = Math.min(0.95, Math.max(0, opts.fade ?? 0));
+  /* luminance of the stock the image is composited onto — the wash target */
+  const washTarget = bg === "transparent" ? 1 : luminance(bg);
   const img = await loadImage(src);
   const canvas = document.createElement("canvas");
   canvas.width = N;
@@ -134,6 +144,8 @@ export async function logoToGrid(
       (0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2]) / 255;
     /* brightness first, then contrast about the midpoint (same order as CSS filters) */
     l = (l * brightness - 0.5) * contrast + 0.5;
+    /* then wash toward the stock colour so the modules stay dominant */
+    if (fade > 0) l = l * (1 - fade) + washTarget * fade;
     lum[i] = l < 0 ? 0 : l > 1 ? 1 : l;
   }
 

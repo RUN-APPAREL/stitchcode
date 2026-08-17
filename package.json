@@ -21,6 +21,7 @@
     "canvas-confetti": "^1.9.3",
     "date-fns": "^2.30.0",
     "framer-motion": "^11.16.1",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.294.0",
     "motion": "^13.1.0",
     "qrcode": "^1.5.4",

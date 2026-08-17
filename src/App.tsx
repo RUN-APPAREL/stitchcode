@@ -418,6 +418,7 @@ function Workbench() {
       mode: style.logoMode,
       brightness: style.logoBrightness,
       contrast: style.logoContrast,
+      fade: style.logoFade,
     },
   );
 

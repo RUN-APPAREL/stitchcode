@@ -19,6 +19,8 @@ export interface LogoGridParams {
   mode: "stitch" | "inlay";
   brightness: number;
   contrast: number;
+  /** wash toward the stock colour, 0–1 */
+  fade: number;
 }
 
 const IDLE: LogoGridState = { grid: null, n: 0, res: 1, warning: null };
@@ -52,6 +54,7 @@ export function useLogoGrid(
       res,
       brightness: p.brightness,
       contrast: p.contrast,
+      fade: p.fade,
     })
       .then((grid) => {
         if (reqId.current !== id) return;
@@ -73,7 +76,7 @@ export function useLogoGrid(
             warning: "Couldn't read that image file — try a different PNG or SVG.",
           });
       });
-  }, [logo, matrix, p.scale, p.threshold, p.edge, p.bg, p.mode, p.brightness, p.contrast]);
+  }, [logo, matrix, p.scale, p.threshold, p.edge, p.bg, p.mode, p.brightness, p.contrast, p.fade]);
 
   return state;
 }

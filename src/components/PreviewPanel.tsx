@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import jsQR from "jsqr";
 import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge, Printer } from "lucide-react";
 import type { QRMatrix } from "../lib/qr";
 import {
@@ -46,10 +47,43 @@ export function PreviewPanel({
   const toast = useToast();
   const [substrate, setSubstrate] = useState<SubstrateId>("white");
   const [sheet, setSheet] = useState(false);
+  const [decode, setDecode] = useState<{ status: "testing" | "pass" | "fail"; ms?: number } | null>(null);
+  const decodeReq = useRef(0);
   const sub = SUBSTRATES.find((s) => s.id === substrate)!;
 
   /* style state → renderer options (merged-logo grid included) */
   const renderOpts = (bg: string) => toRenderOptions(style, logoGrid, logoN, bg);
+
+  /* Real decode test: render the exact export to a canvas and scan it back
+     with jsQR, confirming the payload round-trips. Debounced + guarded. */
+  useEffect(() => {
+    if (!matrix) {
+      setDecode(null);
+      return;
+    }
+    setDecode({ status: "testing" });
+    const id = ++decodeReq.current;
+    const t = window.setTimeout(async () => {
+      try {
+        const canvas = await renderCanvas(matrix, renderOpts(style.bg), 768);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const t0 = performance.now();
+        const res = jsQR(data, width, height);
+        if (decodeReq.current !== id) return;
+        setDecode(
+          res && res.data === payload
+            ? { status: "pass", ms: Math.max(1, Math.round(performance.now() - t0)) }
+            : { status: "fail" },
+        );
+      } catch {
+        if (decodeReq.current === id) setDecode({ status: "fail" });
+      }
+    }, 450);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matrix, style, logoGrid, logoN, payload]);
 
   /* transparent-bg render so the code sits ON the substrate */
   const printed = useMemo(
@@ -140,7 +174,11 @@ export function PreviewPanel({
   }, [matrix, style, payload, logoN]);
 
   const passed = checks.filter((c) => c.pass).length;
-  const verified = matrix !== null && passed === checks.length && checks.length > 0;
+  /* fold the real decode test into the headline pass count */
+  const totalChecks = checks.length + (decode ? 1 : 0);
+  const totalPassed = passed + (decode?.status === "pass" ? 1 : 0);
+  const verified =
+    matrix !== null && totalChecks > 0 && totalPassed === totalChecks;
 
   const modulePx = matrix ? style.exportPx / (matrix.size + style.margin * 2) : 0;
   const printCm = ((style.exportPx / 300) * 2.54).toFixed(1);
@@ -276,13 +314,41 @@ export function PreviewPanel({
               </span>
               <span
                 className={`font-mono text-[11.5px] font-bold ${
-                  passed === checks.length ? "text-ok" : passed >= checks.length / 2 ? "text-warn" : "text-danger"
+                  totalPassed === totalChecks
+                    ? "text-ok"
+                    : totalPassed >= totalChecks / 2
+                      ? "text-warn"
+                      : "text-danger"
                 }`}
               >
-                {passed}/{checks.length}
+                {totalPassed}/{totalChecks}
               </span>
             </div>
             <ul className="divide-y divide-line-soft bg-surface">
+              {/* real decode test — we actually scan the rendered code back */}
+              {decode && (
+                <li className="flex items-center gap-3 bg-surface2/40 px-4 py-2">
+                  {decode.status === "testing" ? (
+                    <span className="pulse-dot h-2 w-2 shrink-0 rounded-full bg-warn" />
+                  ) : (
+                    <PassFail pass={decode.status === "pass"}>
+                      {decode.status === "pass" ? "pass" : "risk"}
+                    </PassFail>
+                  )}
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-[12px] font-bold text-ink">
+                      <ScanLine size={12} className="text-accent2" /> Real decode test
+                    </p>
+                    <p className="truncate text-[11px] font-medium text-ink-muted">
+                      {decode.status === "testing"
+                        ? "Rendering and scanning the code back…"
+                        : decode.status === "pass"
+                          ? `Reads back exactly — decoded in ${decode.ms} ms`
+                          : "Won't scan — raise Wash or Brightness, or reduce the image size"}
+                    </p>
+                  </div>
+                </li>
+              )}
               {checks.map((c) => (
                 <li key={c.label} className="flex items-center gap-3 px-4 py-2">
                   <PassFail pass={c.pass}>{c.pass ? "pass" : "risk"}</PassFail>
