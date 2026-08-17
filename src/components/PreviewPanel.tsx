@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import jsQR from "jsqr";
-import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge, Printer, Sparkles } from "lucide-react";
+import { Download, Image as ImageIcon, Copy, ScanLine, Layers, Gauge, Printer, Sparkles, Share2 } from "lucide-react";
 import type { QRMatrix } from "../lib/qr";
 import {
   canvasToBlob,
@@ -223,6 +223,26 @@ export function PreviewPanel({
     }
   };
 
+  const canShare =
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  const onShare = async () => {
+    try {
+      const blob = await doPng();
+      if (!blob) return;
+      const file = new File([blob], `${filenameBase}.png`, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "My QR code" });
+        toast("success", "Shared!");
+      } else {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        toast("success", "Sharing isn't here — copied to clipboard instead");
+      }
+    } catch {
+      /* user dismissed the share sheet — nothing to report */
+    }
+  };
+
   return (
     <div className="sticky top-[92px] space-y-4">
       <IndustrialCard id="preview" stripe={verified ? "var(--t-ok)" : "var(--t-accent)"}>
@@ -392,6 +412,17 @@ export function PreviewPanel({
             >
               <Copy size={15} />
             </Pill>
+            {canShare && (
+              <Pill
+                variant="ghost"
+                onClick={onShare}
+                disabled={!matrix}
+                title="Send to a friend"
+                className="!px-4"
+              >
+                <Share2 size={15} />
+              </Pill>
+            )}
             <Pill
               variant="ghost"
               onClick={() => setSheet(true)}

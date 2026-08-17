@@ -8,10 +8,15 @@ import {
   MessageSquare,
   Phone,
   ShieldCheck,
+  Wand2,
+  Dice5,
+  Map,
+  BookOpen,
+  Globe,
 } from "lucide-react";
 import type { QRType, FormState } from "../lib/payloads";
 import { QR_TYPE_META } from "../lib/payloads";
-import { IndustrialCard, Tele, Tip } from "./ui";
+import { IndustrialCard, Tele, Tip, useToast } from "./ui";
 
 const TYPE_ICONS: Record<QRType, typeof LinkIcon> = {
   url: LinkIcon,
@@ -25,6 +30,84 @@ const TYPE_ICONS: Record<QRType, typeof LinkIcon> = {
 
 const ORDER: QRType[] = ["url", "text", "wifi", "vcard", "email", "sms", "phone"];
 
+/* one-tap starters — friendly payloads a beginner can load instantly */
+const IDEAS: Array<{
+  icon: typeof Wand2;
+  label: string;
+  type: QRType;
+  apply: (f: FormState) => FormState;
+}> = [
+  {
+    icon: Globe,
+    label: "Cool site",
+    type: "url",
+    apply: (f) => ({ ...f, url: "wikipedia.org/wiki/QR_code" }),
+  },
+  {
+    icon: Wand2,
+    label: "Joke",
+    type: "text",
+    apply: (f) => ({
+      ...f,
+      text: "Why did the QR code go to school? To get a little more scanned!",
+    }),
+  },
+  {
+    icon: Map,
+    label: "Treasure clue",
+    type: "text",
+    apply: (f) => ({
+      ...f,
+      text: "X marks the spot! Look under the third bench in the playground.",
+    }),
+  },
+  {
+    icon: Contact,
+    label: "My card",
+    type: "vcard",
+    apply: (f) => ({
+      ...f,
+      vcard: {
+        ...f.vcard,
+        firstName: "Ada",
+        lastName: "Lovelace",
+        org: "Code Club",
+        title: "Chief Inventor",
+        phone: "+44 20 7946 0000",
+        email: "ada@codeclub.io",
+        website: "",
+      },
+    }),
+  },
+  {
+    icon: Wifi,
+    label: "Home Wi-Fi",
+    type: "wifi",
+    apply: (f) => ({
+      ...f,
+      wifi: { ssid: "Home-Sweet-Home", password: "biscuit42", encryption: "WPA", hidden: false },
+    }),
+  },
+  {
+    icon: BookOpen,
+    label: "Secret note",
+    type: "text",
+    apply: (f) => ({
+      ...f,
+      text: "Meet at the treehouse at 4 o'clock. Bring snacks. Tell no one!",
+    }),
+  },
+];
+
+const SURPRISES = [
+  "The cake is a lie. Also: the treasure is buried where the shadow points at noon.",
+  "If you can read this, you found the secret code. You get 10 house points!",
+  "Riddle: I speak without a mouth and hear without ears. What am I? (An echo!)",
+  "Congratulations! This QR code is 100% made of recycled pixels.",
+  "Warning: scanning this code may cause sudden urges to build your own.",
+  "Knock knock. Who's there? QR. QR who? QR you ready for a laugh yet?",
+];
+
 export function ContentForms({
   type,
   setType,
@@ -36,8 +119,22 @@ export function ContentForms({
   forms: FormState;
   patch: (fn: (f: FormState) => FormState) => void;
 }) {
+  const toast = useToast();
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     patch((f) => ({ ...f, [key]: value }));
+
+  const surprise = () => {
+    const msg = SURPRISES[Math.floor(Math.random() * SURPRISES.length)];
+    setType("text");
+    patch((f) => ({ ...f, text: msg }));
+    toast("success", "Surprise loaded — check your code!");
+  };
+
+  const loadIdea = (idea: (typeof IDEAS)[number]) => {
+    setType(idea.type);
+    patch((f) => idea.apply(f));
+    toast("success", `${idea.label} loaded into the form`);
+  };
 
   return (
     <IndustrialCard id="content" stripe="var(--t-accent2)">
@@ -46,9 +143,18 @@ export function ContentForms({
           <h2 className="font-display text-[17px] font-black tracking-tight text-ink">
             01 · What it says
           </h2>
-          <Tele tone="ok">
-            <ShieldCheck size={11} /> checked as you type
-          </Tele>
+          <span className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={surprise}
+              className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-accent px-3 py-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.06em] text-accent-ink shadow-brutal-sm transition-transform hover:scale-[1.05] hover:rotate-[-2deg] active:scale-95"
+            >
+              <Dice5 size={13} /> Surprise me!
+            </button>
+            <Tele tone="ok" className="hidden sm:inline-flex">
+              <ShieldCheck size={11} /> checked as you type
+            </Tele>
+          </span>
         </div>
 
         <Tabs.Root value={type} onValueChange={(v) => setType(v as QRType)}>
@@ -69,6 +175,27 @@ export function ContentForms({
               );
             })}
           </Tabs.List>
+
+          {/* quick ideas — one tap to fill the form */}
+          <div className="mb-5 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-ink-muted">
+              <Wand2 size={11} /> quick ideas
+            </span>
+            {IDEAS.map((idea) => {
+              const Ico = idea.icon;
+              return (
+                <button
+                  key={idea.label}
+                  type="button"
+                  onClick={() => loadIdea(idea)}
+                  className="group inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-surface px-2.5 py-1 text-[10.5px] font-extrabold text-ink-dim transition-all hover:-translate-y-0.5 hover:border-ink hover:text-ink hover:shadow-brutal-sm active:translate-y-0 active:scale-95"
+                >
+                  <Ico size={12} className="text-accent2 transition-transform group-hover:scale-125" />
+                  {idea.label}
+                </button>
+              );
+            })}
+          </div>
 
           <div className="space-y-3.5">
             {type === "url" && (
