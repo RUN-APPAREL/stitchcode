@@ -27,6 +27,8 @@ flowchart LR
       `run-stitchcode.github.io/stitchcode`
 - [ ] Wiki initialised (one-time: create any wiki page on GitHub), then
       `make wiki-init` pushes `wiki/*.md` to `stitchcode.wiki.git`
+- [ ] Social preview set: Settings → General → Social preview → upload
+      `docs/assets/banner.svg` (a 1280×420 PNG export works best)
 
 > **Forking under a different name?** One command re-points everything:
 > ```bash

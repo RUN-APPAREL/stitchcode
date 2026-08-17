@@ -105,6 +105,10 @@ Before pushing, run the first two yourself:
 npm run typecheck && npm run build
 ```
 
+> On Linux / macOS the **Makefile** wraps these: `make check` runs both,
+> `make dev` starts the studio, and `make serve-dist` builds and opens the
+> portable version.
+
 ---
 
 ## Style notes (the short version)

@@ -1,0 +1,19 @@
+# ------------------------------------------------------------------
+# Consistent text handling for every contributor, on every OS.
+# ------------------------------------------------------------------
+* text=auto eol=lf
+
+# Binary assets — never diff or renormalise these
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+
+# The lockfile is machine-generated — hide it from diffs and merges
+package-lock.json -diff
+
+# Shell scripts must keep LF even when checked out on Windows
+*.sh text eol=lf

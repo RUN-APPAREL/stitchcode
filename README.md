@@ -1,16 +1,16 @@
-<div align="center">
-
 # RUN STITCHCODE
 
-### A friendly QR code studio that stitches your picture *into* the code — and checks that it really scans.
+[![RUN STITCHCODE — QR code studio banner](https://raw.githubusercontent.com/run-stitchcode/stitchcode/main/docs/assets/banner.svg)](https://run-stitchcode.github.io/stitchcode/)
+
+A friendly QR code studio that stitches your picture *into* the code — and
+checks that it really scans. No servers, no accounts, and nothing you type
+ever leaves the device.
 
 [![CI](https://img.shields.io/badge/CI-passing-19c37d?style=for-the-badge&logo=githubactions&logoColor=white&labelColor=1c1c1a)](https://github.com/run-stitchcode/stitchcode/actions)
 [![Pages](https://img.shields.io/badge/Pages-ready-16336f?style=for-the-badge&logo=githubpages&logoColor=white&labelColor=1c1c1a)](https://run-stitchcode.github.io/stitchcode/)
 [![Docker](https://img.shields.io/badge/Docker-image-073042?style=for-the-badge&logo=docker&logoColor=white&labelColor=1c1c1a)](https://github.com/run-stitchcode/stitchcode/pkgs/container/stitchcode)
 [![Licence](https://img.shields.io/badge/Licence-MIT-fe492a?style=for-the-badge&labelColor=1c1c1a)](./LICENSE)
 [![Runs offline](https://img.shields.io/badge/Runs-100%25_offline-132a22?style=for-the-badge&logo=wifi&logoColor=white&labelColor=1c1c1a)](#why-it-is-safe)
-
-</div>
 
 ---
 
@@ -65,6 +65,9 @@ npm install
 # 3. start the studio
 npm run dev              # then open the link it prints (usually :5173)
 ```
+
+> **On Windows without `make`?** Use the npm scripts directly — `npm run dev`,
+> and `npm run build -- --base=./` for the portable folder.
 
 > **Stuck?** The [Troubleshooting wiki page](https://github.com/run-stitchcode/stitchcode/wiki/Troubleshooting) fixes
 > the five most common bumps, in pictures.
@@ -217,7 +220,11 @@ stitchcode/
 │       ├── themes          ← the five wardrobes
 │       └── sample          ← the bundled sample picture
 ├── docs/                   ← illustrated guides
-├── wiki/                   ← wiki pages (copy into the repo wiki)
+│   └── assets/banner.svg   ← the banner (also the social-preview image)
+├── wiki/                   ← wiki pages (make wiki-init publishes them)
+├── scripts/                ← helpers (init-wiki.sh)
+├── public/                 ← offline bits: service worker, manifest, icon
+├── Makefile                ← one-command helpers (dev · check · release…)
 └── .github/                ← robots: CI, Pages, releases, Docker
 ```
 
