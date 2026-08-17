@@ -5,7 +5,7 @@
 # ------------------------------------------------------------------
 
 # Step 1 — the oven
-FROM node:24-alpine AS bake
+FROM node:26-alpine AS bake
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
