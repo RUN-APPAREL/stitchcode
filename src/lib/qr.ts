@@ -39,26 +39,37 @@ export interface QRRenderOptions {
  * capped at 50% → ≤ 25% of the code's area, safely inside level H's ~30%
  * recovery budget (industry guidance caps logos at ≤ 30% of area).
  */
-export function logoRegionModules(codeSize: number, scale: number): number {
+/**
+ * Width (in modules) of the logo region for a given fraction of the code.
+ *
+ * `maxFraction` encodes the scannability ceiling for each technique:
+ * - inlay replaces real data, so it's capped at half the code width (≤ 25% of
+ *   area — the industry-safe ceiling level H can recover);
+ * - stitch redraws the complete code on top, so it may run full-bleed (1.0),
+ *   producing a "photo QR" where the halftone fills the whole symbol.
+ */
+export function logoRegionModules(codeSize: number, scale: number, maxFraction = 0.5): number {
+  if (maxFraction >= 1) return Math.max(5, Math.min(Math.round(codeSize * scale), codeSize));
   let n = Math.round(codeSize * scale);
-  n = Math.max(5, Math.min(n, Math.floor(codeSize * 0.5)));
+  n = Math.max(5, Math.min(n, Math.floor(codeSize * maxFraction)));
   return n % 2 === 0 ? n + 1 : n;
 }
 
+/** How the mark's tones are reduced to modules. */
+export type LogoEdge = "crisp" | "dither" | "ordered";
+
 /**
- * Rasterise an image into an n×n module grid.
- *
- * The whole mark is fitted inside the region (never cropped), composited over
- * the code's background so transparency behaves, reduced to luminance, then
- * binarised. With `dither` on, Floyd–Steinberg error diffusion spreads the
- * quantisation error to neighbouring cells — the halftone technique that keeps
- * gradients, shadows and thin strokes legible at QR resolution.
+ * Bayer 4×4 ordered-dither threshold map (row-major, 0–15). Ordered dithering
+ * compares each pixel to a position-dependent threshold, yielding the stable,
+ * graphic halftone-screen look (vs. Floyd–Steinberg's photographic speckle).
  */
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
 export interface LogoRasterOptions {
   /**
    * Sub-pixels per module. "Stitch" mode rasterises at 3× the module grid so
-   * the error-diffusion halftone is far finer than the code itself; "inlay"
-   * works at module resolution (1 bit per module).
+   * the halftone is far finer than the code itself; "inlay" works at module
+   * resolution (1 bit per module).
    */
   res?: number;
   /** pre-exposure multiplier applied before thresholding (1 = unchanged) */
@@ -67,12 +78,22 @@ export interface LogoRasterOptions {
   contrast?: number;
 }
 
+/**
+ * Rasterise an image into an n×n module grid.
+ *
+ * The whole mark is fitted inside the region (never cropped), composited over
+ * the code's background so transparency behaves, reduced to luminance, then
+ * binarised. The `edge` mode controls the reduction:
+ * - "dither" — Floyd–Steinberg error diffusion (photographic, gradient-aware);
+ * - "ordered" — Bayer 4×4 threshold map (stable, graphic halftone-screen);
+ * - "crisp" — a hard 1-bit cut at the threshold.
+ */
 export async function logoToGrid(
   src: string,
   n: number,
   threshold: number,
   bg: string,
-  dither: boolean,
+  edge: LogoEdge,
   opts: LogoRasterOptions = {},
 ): Promise<Uint8Array> {
   const res = Math.max(1, Math.round(opts.res ?? 1));
@@ -117,12 +138,23 @@ export async function logoToGrid(
   }
 
   const grid = new Uint8Array(N * N);
-  if (!dither) {
+  if (edge === "crisp") {
     for (let i = 0; i < N * N; i++) grid[i] = lum[i] < threshold ? 1 : 0;
     return grid;
   }
 
-  /* Floyd–Steinberg error diffusion */
+  if (edge === "ordered") {
+    /* Bayer ordered dither: position-dependent threshold about the midpoint */
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const t = (BAYER4[(j % 4) * 4 + (i % 4)] + 0.5) / 16; // 0.03 … 0.97
+        grid[j * N + i] = lum[j * N + i] < threshold + (t - 0.5) ? 1 : 0;
+      }
+    }
+    return grid;
+  }
+
+  /* Floyd–Steinberg error diffusion (edge === "dither") */
   for (let j = 0; j < N; j++) {
     for (let i = 0; i < N; i++) {
       const idx = j * N + i;

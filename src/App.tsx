@@ -413,7 +413,7 @@ function Workbench() {
     {
       scale: style.logoScale,
       threshold: style.logoThreshold,
-      dither: style.logoEdge === "dither",
+      edge: style.logoEdge,
       bg: style.bg,
       mode: style.logoMode,
       brightness: style.logoBrightness,

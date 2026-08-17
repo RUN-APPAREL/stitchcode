@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { gridDarkFraction, logoRegionModules, logoToGrid, type QRMatrix } from "./qr";
+import { gridDarkFraction, logoRegionModules, logoToGrid, type LogoEdge, type QRMatrix } from "./qr";
 
 export interface LogoGridState {
   grid: Uint8Array | null;
@@ -14,7 +14,7 @@ export interface LogoGridState {
 export interface LogoGridParams {
   scale: number;
   threshold: number;
-  dither: boolean;
+  edge: LogoEdge;
   bg: string;
   mode: "stitch" | "inlay";
   brightness: number;
@@ -46,9 +46,9 @@ export function useLogoGrid(
       setState(IDLE);
       return;
     }
-    const n = logoRegionModules(matrix.size, p.scale);
+    const n = logoRegionModules(matrix.size, p.scale, p.mode === "stitch" ? 1 : 0.5);
     const res = p.mode === "stitch" ? 3 : 1;
-    logoToGrid(logo, n, p.threshold, p.bg, p.dither, {
+    logoToGrid(logo, n, p.threshold, p.bg, p.edge, {
       res,
       brightness: p.brightness,
       contrast: p.contrast,
@@ -73,7 +73,7 @@ export function useLogoGrid(
             warning: "Couldn't read that image file — try a different PNG or SVG.",
           });
       });
-  }, [logo, matrix, p.scale, p.threshold, p.dither, p.bg, p.mode, p.brightness, p.contrast]);
+  }, [logo, matrix, p.scale, p.threshold, p.edge, p.bg, p.mode, p.brightness, p.contrast]);
 
   return state;
 }

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ArrowDownUp, Upload, Trash2, AlertTriangle, Palette, Sparkles } from "lucide-react";
-import type { ECLevel, DotStyle, CornerStyle, QRRenderOptions } from "../lib/qr";
+import type { ECLevel, DotStyle, CornerStyle, QRRenderOptions, LogoEdge } from "../lib/qr";
 import { EC_INFO } from "../lib/qr";
 import { ColorField, IndustrialCard, Pill, Seg, SelectField, SliderRow, Tele, Tip, useToast } from "./ui";
 
@@ -51,10 +51,11 @@ export interface StyleState {
   /** contrast about the midpoint, after brightness (1 = unchanged) */
   logoContrast: number;
   /**
-   * "dither" spreads quantisation error to neighbouring pixels (halftone —
-   * keeps gradients and thin strokes legible); "crisp" is a hard 1-bit cut.
+   * How the mark's tones become modules: "dither" (Floyd–Steinberg,
+   * photographic), "ordered" (Bayer halftone-screen, graphic), or "crisp"
+   * (hard 1-bit cut).
    */
-  logoEdge: "dither" | "crisp";
+  logoEdge: LogoEdge;
   exportPx: number;
 }
 
@@ -322,7 +323,13 @@ export function StylePanel({
                   </span>
                   <Seg<"stitch" | "inlay">
                     value={style.logoMode}
-                    onChange={(v) => patch({ logoMode: v })}
+                    onChange={(v) =>
+                      patch(
+                        v === "inlay"
+                          ? { logoMode: v, logoScale: Math.min(style.logoScale, 0.5) }
+                          : { logoMode: v },
+                      )
+                    }
                     options={[
                       { value: "stitch", label: "Stitch" },
                       { value: "inlay", label: "Inlay" },
@@ -331,10 +338,14 @@ export function StylePanel({
                 </div>
                 <SliderRow
                   label="Image size"
-                  tip="How wide the logo region is. The whole mark always fits — it's never cropped. Inlay should stay under half the code width so level H can restore the replaced data."
+                  tip={
+                    style.logoMode === "stitch"
+                      ? "How wide the image runs under the code. Stitch redraws every module on top, so you can go full-bleed (100%) for a photo-QR look. The mark is never cropped."
+                      : "How wide the logo region is. The whole mark always fits — it's never cropped. Inlay replaces data, so it's capped at half the code width for level H to restore."
+                  }
                   value={Math.round(style.logoScale * 100)}
                   min={10}
-                  max={50}
+                  max={style.logoMode === "stitch" ? 100 : 50}
                   onChange={(v) => patch({ logoScale: v / 100 })}
                   format={(v) => `${v}%`}
                 />
@@ -371,13 +382,14 @@ export function StylePanel({
                 <div>
                   <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
                     Edge style
-                    <Tip text="Dithered spreads each pixel's error to its neighbours — the halftone effect that keeps gradients, shadows and thin strokes legible at QR resolution. Crisp is a hard 1-bit cut." />
+                    <Tip text="How tones become modules. Dithered (Floyd–Steinberg) gives a photographic, gradient-aware speckle; Screen (Bayer) a stable, graphic halftone-screen; Crisp a hard 1-bit cut." />
                   </span>
-                  <Seg<"dither" | "crisp">
+                  <Seg<LogoEdge>
                     value={style.logoEdge}
                     onChange={(v) => patch({ logoEdge: v })}
                     options={[
                       { value: "dither", label: "Dithered" },
+                      { value: "ordered", label: "Screen" },
                       { value: "crisp", label: "Crisp" },
                     ]}
                   />

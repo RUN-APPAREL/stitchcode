@@ -100,7 +100,9 @@ export function PreviewPanel({
           label: "Stitched logo",
           detail:
             logoN > 0
-              ? "Halftone under the complete code — no data replaced, safe at any level"
+              ? area > 0.6
+                ? "Full-bleed halftone — every module intact, but busy backgrounds scan best large"
+                : "Halftone under the complete code — no data replaced, safe at any level"
               : "Rasterising the mark…",
           pass: true,
         });
