@@ -65,7 +65,7 @@ export function useLogoGrid(
           res,
           warning:
             dark < 0.02
-              ? "This mark reads as almost white at the current settings — it will be invisible in the code. Try a darker image, or lower the ink threshold and brightness."
+              ? "We can barely see your picture — it's almost white! Try a darker picture, or slide 'How dark' up."
               : null,
         });
       })

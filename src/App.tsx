@@ -506,9 +506,13 @@ function Workbench() {
         </p>
       </Reveal>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <Reveal className="space-y-6">
+      <div className="space-y-6">
+        <Reveal>
           <ContentForms type={type} setType={setType} forms={forms} patch={setForms} />
+        </Reveal>
+        {/* on desktop the live proof sits side-by-side with the style settings */}
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <Reveal>
           <StylePanel
             style={style}
             setStyle={setStyle}
@@ -526,6 +530,7 @@ function Workbench() {
             logoN={logoN}
           />
         </Reveal>
+        </div>
       </div>
 
       {/* history */}

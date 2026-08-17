@@ -15,11 +15,11 @@ import { toRenderOptions, type StyleState } from "./StylePanel";
 import { IndustrialCard, PassFail, Pill, SpecCell, Tele, useToast } from "./ui";
 
 const SUBSTRATES = [
-  { id: "white", label: "White", finish: "matte", cls: "sub-white", color: "#ffffff" },
-  { id: "kraft", label: "Kraft", finish: "240 gsm", cls: "sub-kraft", color: "#bd8a52" },
-  { id: "knit", label: "Poly Knit", finish: "heather", cls: "sub-knit", color: "#dfe3e7" },
-  { id: "cotton", label: "Woven Cotton", finish: "natural", cls: "sub-cotton", color: "#efebe0" },
-  { id: "nylon", label: "Nylon", finish: "ripstop", cls: "sub-nylon", color: "#d3d9e1" },
+  { id: "white", label: "White", finish: "paper", cls: "sub-white", color: "#ffffff" },
+  { id: "kraft", label: "Kraft", finish: "brown paper", cls: "sub-kraft", color: "#bd8a52" },
+  { id: "knit", label: "Poly Knit", finish: "soft fabric", cls: "sub-knit", color: "#dfe3e7" },
+  { id: "cotton", label: "Woven Cotton", finish: "t-shirt fabric", cls: "sub-cotton", color: "#efebe0" },
+  { id: "nylon", label: "Nylon", finish: "jacket fabric", cls: "sub-nylon", color: "#d3d9e1" },
 ] as const;
 type SubstrateId = (typeof SUBSTRATES)[number]["id"];
 
@@ -103,26 +103,26 @@ export function PreviewPanel({
     const polarity = luminance(style.fg) < luminance(style.bg);
     const list: Check[] = [
       {
-        label: "Clear margin",
+        label: "Blank border",
         detail:
           style.margin >= 4
-            ? "Enough blank space around the code"
-            : "Too little blank space — cameras may miss the code",
+            ? "Enough empty space around the code"
+            : "Not enough empty space — cameras may miss the code",
         pass: style.margin >= 4,
       },
       {
-        label: "Contrast",
+        label: "Dark vs light",
         detail:
           ratio >= 4.5
-            ? "Strong difference between code and background"
-            : "Too low — darken the code or lighten the background",
+            ? "The code stands out clearly from the background"
+            : "Too faint — make the code darker or the background lighter",
         pass: ratio >= 4.5,
       },
       {
-        label: "Orientation",
+        label: "Right way round",
         detail: polarity
-          ? "Dark on light — the way cameras expect it"
-          : "Light on dark — most phone cameras struggle with this",
+          ? "Dark code on a light background — easy for cameras"
+          : "Light code on dark — most phone cameras struggle with this",
         pass: polarity,
       },
     ];
@@ -131,43 +131,43 @@ export function PreviewPanel({
       const areaPct = Math.round(area * 100);
       if (style.logoMode === "stitch") {
         list.push({
-          label: "Stitched logo",
+          label: "Your picture",
           detail:
             logoN > 0
               ? area > 0.6
-                ? "Full-bleed halftone — every module intact, but busy backgrounds scan best large"
-                : "Halftone under the complete code — no data replaced, safe at any level"
-              : "Rasterising the mark…",
+                ? "It fills the whole code — still works, but big pictures scan best printed large"
+                : "It sits under the code, so nothing important is covered — safe at any size"
+              : "Adding your picture…",
           pass: true,
         });
       } else {
         const okLogo = style.ec === "H" && area <= 0.25;
         list.push({
-          label: "Inlaid logo",
+          label: "Your picture",
           detail: okLogo
             ? logoN > 0
-              ? `Inlaid as ${logoN}×${logoN} modules — ${areaPct}% of the code${
-                  area > 0.2 ? ", near the safe limit" : ", well within the safe limit"
+              ? `It uses ${areaPct}% of the code${
+                  area > 0.2 ? " — getting big, but still fine" : " — a comfy, safe size"
                 }`
-              : "Rasterising the mark…"
+              : "Adding your picture…"
             : style.ec !== "H"
-              ? "Switch error correction to High, or use Stitch"
-              : "It replaces too much of the code — shrink the image size",
+              ? "Set Safety level to Max, or switch to 'Behind the code'"
+              : "It covers too much of the code — make the picture smaller",
           pass: okLogo,
         });
       }
     }
     if (payload.startsWith("http://")) {
-      list.push({ label: "Link safety", detail: "Plain HTTP — browsers will warn people", pass: false });
+      list.push({ label: "Link safety", detail: "Uses http, not https — phones will show a warning", pass: false });
     }
     list.push({
-      label: "Density",
+      label: "How busy it is",
       detail:
         matrix.version <= 10
-          ? "Nice and sparse — scans quickly, even small"
+          ? "Nice and simple — scans fast, even when small"
           : matrix.version <= 20
-            ? "Medium density — keep printed copies 3 cm or larger"
-            : "Very dense — large prints only, and test before you commit",
+            ? "A fair bit going on — print it 3 cm wide or bigger"
+            : "Very busy — print it large, and always test it first",
       pass: matrix.version <= 20,
     });
     return list;
@@ -206,7 +206,7 @@ export function PreviewPanel({
       type: "image/svg+xml",
     });
     downloadBlob(blob, `${filenameBase}.svg`);
-    toast("success", "Vector SVG saved — infinite scale for print");
+    toast("success", "SVG saved — it stays sharp at any size");
   };
 
   const onCopy = async () => {
@@ -230,7 +230,7 @@ export function PreviewPanel({
             <h2 className="font-display text-[15px] font-black tracking-tight text-ink">Live proof</h2>
           </div>
           {matrix && verified && <Tele tone="ok">✓ ready to scan</Tele>}
-          {matrix && !verified && <Tele tone="warn">needs attention</Tele>}
+          {matrix && !verified && <Tele tone="warn">check the notes below</Tele>}
         </div>
 
         {/* substrate selector */}
@@ -274,7 +274,7 @@ export function PreviewPanel({
               <ScanLine size={28} className="text-accent2" />
               <p className="px-8 text-[13px] font-bold text-ink-dim">
                 {payload
-                  ? "This content is too long for the chosen error-correction level — shorten it, or pick a lower level under Style."
+                  ? "That's too much to fit! Shorten what you're sharing, or turn the Safety level down a little."
                   : "Fill in the form and your code appears here instantly."}
               </p>
             </div>
@@ -285,22 +285,22 @@ export function PreviewPanel({
         {matrix && (
           <div className="grid grid-cols-2 gap-2 px-5 pt-4">
             <SpecCell
-              label="Export size"
+              label="Size when saved"
               value={`${style.exportPx} px`}
-              hint={`prints ${printCm} × ${printCm} cm at 300 DPI`}
+              hint={`prints about ${printCm} cm wide`}
             />
-            <SpecCell label="Square size" value={`${modulePx.toFixed(1)} px`} hint="each dot at export size" />
+            <SpecCell label="Each tiny square" value={`${modulePx.toFixed(1)} px`} hint="this small on a screen" />
             <SpecCell
-              label="Surface contrast"
-              value={`${subContrast.toFixed(1)}:1`}
+              label="Stands out on"
+              value={`${subContrast.toFixed(0)}:1`}
               tone={subContrast >= 4.5 ? "ok" : subContrast >= 3 ? "warn" : "danger"}
-              hint={`on ${sub.label.toLowerCase()}`}
+              hint={subContrast >= 4.5 ? `${sub.label.toLowerCase()} ✓` : `${sub.label.toLowerCase()} — a bit faint`}
             />
             <SpecCell
-              label="Clear margin"
-              value={`${style.margin}×`}
+              label="Blank border"
+              value={`${style.margin} squares`}
               tone={style.margin >= 4 ? "ok" : "danger"}
-              hint={style.margin >= 4 ? "safe margin ✓" : "too little margin"}
+              hint={style.margin >= 4 ? "plenty of space ✓" : "needs at least 4"}
             />
           </div>
         )}
@@ -337,14 +337,14 @@ export function PreviewPanel({
                   )}
                   <div className="min-w-0">
                     <p className="flex items-center gap-1.5 text-[12px] font-bold text-ink">
-                      <ScanLine size={12} className="text-accent2" /> Real decode test
+                      <ScanLine size={12} className="text-accent2" /> We scanned it for you
                     </p>
                     <p className="truncate text-[11px] font-medium text-ink-muted">
                       {decode.status === "testing"
-                        ? "Rendering and scanning the code back…"
+                        ? "Scanning your code…"
                         : decode.status === "pass"
-                          ? `Reads back exactly — decoded in ${decode.ms} ms`
-                          : "Won't scan — raise Wash or Brightness, or reduce the image size"}
+                          ? "It works! A phone camera can read it ✓"
+                          : "It won't scan — try more Fade, or make the picture smaller"}
                     </p>
                   </div>
                 </li>
@@ -392,10 +392,10 @@ export function PreviewPanel({
           {matrix && (
             <p className="mt-2.5 flex items-center justify-between text-[10.5px] font-semibold text-ink-muted">
               <span>
-                PNG → <span className="font-bold text-ink-dim">{printCm} cm</span> @ 300 DPI
+                Prints about <span className="font-bold text-ink-dim">{printCm} cm</span> wide
               </span>
-              <span className={Number(printCm) < 2 ? "font-bold text-danger" : ""}>
-                {Number(printCm) < 2 ? "below 2 cm minimum" : "above 2 cm print minimum"}
+              <span className={Number(printCm) < 2 ? "font-bold text-danger" : "font-bold text-ok"}>
+                {Number(printCm) < 2 ? "too small — make it bigger" : "big enough to scan ✓"}
               </span>
             </p>
           )}
@@ -520,7 +520,7 @@ function PrintSheet({
 
           <div className="flex justify-center py-10">{framed(`${cm}cm`, "main")}</div>
           <p className="text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500">
-            {cm} × {cm} cm — your selected export size at 300 DPI
+            {cm} × {cm} cm — your chosen size
           </p>
 
           <div className="mt-9 grid grid-cols-[auto_1fr] items-center gap-6 border-t border-dashed border-neutral-300 pt-7">
@@ -538,7 +538,7 @@ function PrintSheet({
 
           <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-3 border-t-2 border-neutral-900 pt-4 sm:grid-cols-4">
             <Meta
-              label="Ink"
+              label="Code colour"
               value={
                 <span className="flex items-center gap-1.5">
                   <span
@@ -549,8 +549,8 @@ function PrintSheet({
                 </span>
               }
             />
-            <Meta label="Correction" value={`Level ${style.ec}`} />
-            <Meta label="Clear margin" value={`${style.margin} squares`} />
+            <Meta label="Safety" value={`Level ${style.ec}`} />
+            <Meta label="Blank border" value={`${style.margin} squares`} />
             <Meta label="Content" value={excerpt} />
           </div>
 

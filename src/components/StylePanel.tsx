@@ -123,7 +123,7 @@ export function StylePanel({
     /* Stitch needs no extra redundancy; Inlay erases data, so raise to H */
     if (style.logoMode === "inlay" && style.ec !== "H") {
       patch({ logo, ec: "H" });
-      toast("success", `${doneMsg} — error correction raised to H for the inlay`);
+      toast("success", `${doneMsg} — we turned Safety up to H so it still scans`);
     } else {
       patch({ logo });
       toast("success", doneMsg);
@@ -143,7 +143,7 @@ export function StylePanel({
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => applyLogo(String(reader.result), "Logo merged into the centre");
+    reader.onload = () => applyLogo(String(reader.result), "Added your picture");
     reader.readAsDataURL(file);
   };
 
@@ -159,7 +159,7 @@ export function StylePanel({
 
         {/* colours */}
         <div className="grid grid-cols-2 gap-3">
-          <ColorField label="Module ink" value={style.fg} onChange={(v) => patch({ fg: v })} />
+          <ColorField label="Code colour" value={style.fg} onChange={(v) => patch({ fg: v })} />
           <ColorField label="Field / stock" value={style.bg} onChange={(v) => patch({ bg: v })} />
         </div>
         <button
@@ -227,28 +227,28 @@ export function StylePanel({
           </div>
         </div>
 
-        {/* error correction */}
+        {/* safety level */}
         <div className="mt-5">
           <SelectField<ECLevel>
-            label="Error correction"
-            tip="How much of the code can be damaged or covered and still decode. Use Q or H for print and anything with a logo."
+            label="Safety level"
+            tip="How tough your code is. If it gets a little dirty, smudged or torn, a tougher code still scans. Turn it up when you add a picture."
             value={style.ec}
             onChange={(v) => patch({ ec: v })}
             options={(Object.keys(EC_INFO) as ECLevel[]).map((k) => ({
               value: k,
-              label: `Level ${k} — ${EC_INFO[k].label} · ${EC_INFO[k].recovery}`,
+              label: `Level ${k} — ${EC_INFO[k].label} · survives ${EC_INFO[k].recovery}`,
             }))}
           />
           <p className="mt-1.5 text-[11px] font-semibold text-ink-muted">
-            Holds {EC_INFO[style.ec].capacity.toLowerCase()} · survives {EC_INFO[style.ec].recovery.toLowerCase()}
+            Survives {EC_INFO[style.ec].recovery.toLowerCase()} · holds {EC_INFO[style.ec].capacity.toLowerCase()}
           </p>
         </div>
 
-        {/* quiet zone */}
+        {/* blank border */}
         <div className="mt-5">
           <SliderRow
-            label="Clear margin"
-            tip="The blank border around the code. The standard asks for at least 4 squares — never let artwork or edges print into it."
+            label="Blank border"
+            tip="The empty ring of space around your code. Cameras need at least 4 squares of clear space here — don't put anything in it!"
             value={style.margin}
             min={0}
             max={10}
@@ -257,7 +257,7 @@ export function StylePanel({
           />
           {style.margin < 4 && (
             <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-warn">
-              <AlertTriangle size={12} /> Below the safe minimum of 4
+              <AlertTriangle size={12} /> Too thin — scanners need at least 4 squares
             </p>
           )}
         </div>
@@ -282,8 +282,8 @@ export function StylePanel({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
-              Logo in the code
-              <Tip text="Your mark becomes part of the code itself — never a sticker on top. Stitch dithers the image under the complete code (nothing erased); Inlay pixelates it into real modules that replace data (level H restores it)." />
+              Your picture in the code
+              <Tip text="Your picture actually becomes part of the code — it's not just stuck on top! Make it bigger or fade it, and the live proof tells you right away if it still scans." />
             </span>
             {style.logo ? (
               <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => patch({ logo: null })}>
@@ -291,8 +291,8 @@ export function StylePanel({
               </Pill>
             ) : (
               <span className="flex items-center gap-1.5">
-                <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => applyLogo(SAMPLE_LOGO, "Sample mark merged")}>
-                  <Sparkles size={12} /> Try sample
+                <Pill variant="ghost" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => applyLogo(SAMPLE_LOGO, "Added a sample picture")}>
+                  <Sparkles size={12} /> Try a sample
                 </Pill>
                 <Pill variant="dark" className="!px-3.5 !py-1.5 !text-[10.5px]" onClick={() => fileRef.current?.click()}>
                   <Upload size={12} /> Upload
@@ -321,24 +321,24 @@ export function StylePanel({
               <div className="flex-1 space-y-3">
                 <div>
                   <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
-                    Technique
-                    <Tip text="Stitch lays a fine halftone of the image down and redraws the complete code over it — nothing is erased, so it scans at any error-correction level. Inlay turns the image into real modules that replace the data underneath — level H restores what's lost." />
+                    Mix style
+                    <Tip text="'Behind the code' keeps every part of the code on top of your picture, so it always scans — safe at any size. 'Into the code' lets your picture replace some of the dots — bolder look, but keep it smaller." />
                   </span>
                   <Seg<"stitch" | "inlay">
                     value={style.logoMode}
                     onChange={(v) => patch({ logoMode: v })}
                     options={[
-                      { value: "stitch", label: "Stitch" },
-                      { value: "inlay", label: "Inlay" },
+                      { value: "stitch", label: "Behind the code" },
+                      { value: "inlay", label: "Into the code" },
                     ]}
                   />
                 </div>
                 <SliderRow
-                  label="Image size"
+                  label="How big"
                   tip={
                     style.logoMode === "stitch"
-                      ? "How wide the image runs under the code — right up to full-bleed (100%) for a photo-QR look, since Stitch redraws every module on top. The mark is never cropped."
-                      : "How wide the logo region is — the mark is never cropped. Inlay replaces real data, so past ~50% there's more than level H can restore: the scan checks and the decode test will call it out."
+                      ? "Drag to make your picture bigger — it can fill the whole code (100%) because the code sits safely on top of it."
+                      : "Drag to make your picture bigger. With 'Into the code', going past about half can hide too much of the code — the scan check will warn you."
                   }
                   value={Math.round(style.logoScale * 100)}
                   min={10}
@@ -364,8 +364,8 @@ export function StylePanel({
                   ))}
                 </div>
                 <SliderRow
-                  label="Ink threshold"
-                  tip="The luminance midpoint: pixels darker than this become dark. With dithering on it acts like a halftone's exposure — tune it until the mark reads clearly."
+                  label="How dark"
+                  tip="Slide to make your picture look darker or lighter inside the code. If it disappears, try a darker setting."
                   value={Math.round(style.logoThreshold * 100)}
                   min={15}
                   max={85}
@@ -375,7 +375,7 @@ export function StylePanel({
                 />
                 <SliderRow
                   label="Brightness"
-                  tip="Pre-exposure applied before dithering. Raise it to open up shadows and make the image read lighter under the code."
+                  tip="Makes the whole picture brighter or dimmer — just like your phone screen."
                   value={Math.round(style.logoBrightness * 100)}
                   min={40}
                   max={260}
@@ -384,8 +384,8 @@ export function StylePanel({
                   format={(v) => `${v}%`}
                 />
                 <SliderRow
-                  label="Contrast"
-                  tip="Pushes tones away from the midpoint after brightness — separates the image from the modules so both stay legible."
+                  label="Pop"
+                  tip="Makes the dark parts darker and the light parts lighter, so your picture stands out from the code."
                   value={Math.round(style.logoContrast * 100)}
                   min={50}
                   max={260}
@@ -394,8 +394,8 @@ export function StylePanel({
                   format={(v) => `${v}%`}
                 />
                 <SliderRow
-                  label="Wash"
-                  tip="Fades the image toward the stock colour so the modules stay dominant. The single biggest readability lever for full-bleed photo codes — raise it until the decode test passes."
+                  label="Fade"
+                  tip="Softens your picture toward the background so the code on top is easy to scan. If the scan test says it won't work, add more fade."
                   value={Math.round(style.logoFade * 100)}
                   min={0}
                   max={60}
@@ -405,32 +405,41 @@ export function StylePanel({
                 />
                 <div>
                   <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim">
-                    Edge style
-                    <Tip text="How tones become modules. Dithered (Floyd–Steinberg) gives a photographic, gradient-aware speckle; Screen (Bayer) a stable, graphic halftone-screen; Crisp a hard 1-bit cut." />
+                    Picture style
+                    <Tip text="Photo gives smooth, soft shading. Dotty gives a fun pattern of dots. Sharp gives hard, crisp edges." />
                   </span>
                   <Seg<LogoEdge>
                     value={style.logoEdge}
                     onChange={(v) => patch({ logoEdge: v })}
                     options={[
-                      { value: "dither", label: "Dithered" },
-                      { value: "ordered", label: "Screen" },
-                      { value: "crisp", label: "Crisp" },
+                      { value: "dither", label: "Photo" },
+                      { value: "ordered", label: "Dotty" },
+                      { value: "crisp", label: "Sharp" },
                     ]}
                   />
                 </div>
                 {style.logoMode === "stitch" ? (
-                  <p className="flex items-center gap-1.5 text-[11px] font-bold text-ink-muted">
-                    No modules replaced — the full code is redrawn over the image
+                  <p className="flex items-center gap-1.5 text-[11px] font-bold text-ok">
+                    ✓ Safe at any size — the whole code sits on top of your picture
                   </p>
                 ) : (
                   mergePct !== null && (
                     <p
                       className={`flex items-center gap-1.5 text-[11px] font-bold ${
-                        mergePct > 25 ? "text-danger" : mergePct > 20 ? "text-warn" : "text-ink-muted"
+                        mergePct > 25 ? "text-danger" : mergePct > 20 ? "text-warn" : "text-ok"
                       }`}
                     >
-                      {mergePct > 25 ? <AlertTriangle size={12} /> : null}
-                      Replaces ≈ {mergePct}% of the code's modules · level H restores ~30%
+                      {mergePct > 25 ? (
+                        <>
+                          <AlertTriangle size={12} /> Too busy to scan — make your picture smaller
+                        </>
+                      ) : mergePct > 20 ? (
+                        <>
+                          <AlertTriangle size={12} /> Getting busy — try more Fade or a smaller picture
+                        </>
+                      ) : (
+                        <>✓ Still easy to scan</>
+                      )}
                     </p>
                   )
                 )}
@@ -439,7 +448,7 @@ export function StylePanel({
           )}
           {style.logo && style.logoMode === "inlay" && style.ec !== "H" && (
             <p className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-danger">
-              <AlertTriangle size={12} /> An inlay replaces data — switch error correction up to H, or use Stitch.
+              <AlertTriangle size={12} /> "Into the code" needs the Safety level set to H — or use "Behind the code".
             </p>
           )}
           {style.logo && logoWarning && (
@@ -449,9 +458,8 @@ export function StylePanel({
           )}
           {!style.logo && (
             <p className="mt-2 text-[10.5px] font-medium leading-snug text-ink-muted">
-              Upload a mark — or drop it right here — and it's worked into the matrix, never pasted
-              on top. Stitch keeps every module in place over a fine halftone of the image; Inlay
-              turns the mark itself into modules.
+              Add a picture — or drop it right here! It becomes part of your code (not a sticker on
+              top), and the live proof tells you instantly if it still scans.
             </p>
           )}
         </div>
@@ -459,15 +467,15 @@ export function StylePanel({
         {/* export size */}
         <div className="mt-5">
           <SelectField<string>
-            label="PNG target size"
-            tip="Pixels per side. 1024px covers most print; 2048px for large-format posters."
+            label="Picture size for saving"
+            tip="How big the picture you save will be. 1024 is perfect for printing, 2048 for really big posters."
             value={String(style.exportPx)}
             onChange={(v) => patch({ exportPx: Number(v) })}
             options={[
-              { value: "256", label: "256 px — screens & receipts" },
+              { value: "256", label: "256 px — small screens" },
               { value: "512", label: "512 px — web & small print" },
-              { value: "1024", label: "1024 px — standard print" },
-              { value: "2048", label: "2048 px — posters & signage" },
+              { value: "1024", label: "1024 px — printing (best)" },
+              { value: "2048", label: "2048 px — big posters" },
             ]}
           />
         </div>

@@ -9,33 +9,33 @@ import { Reveal, Tele, Decode } from "./ui";
 const RULES = [
   {
     icon: Aperture,
-    title: "Guard the quiet zone",
-    body: "Four squares of clear space on every side is the standard minimum. Artwork, die-cuts and fold lines that creep into it are the number-one cause of dead codes.",
+    title: "Leave a clear border",
+    body: "Give the code at least four empty squares of space on every side. Pictures, folds or edges that crowd it are the top reason codes won't scan.",
   },
   {
     icon: Contrast,
-    title: "Ink dark, field light",
-    body: "Scanners expect positive polarity with at least 4.5:1 contrast. Neon ink on a black tee looks great and scans nowhere.",
+    title: "Dark code, light background",
+    body: "Cameras read a dark code on a light background best. A neon code on a black shirt looks cool but barely ever scans.",
   },
   {
     icon: Ruler,
-    title: "Size for the distance",
-    body: "Rule of thumb: 10× the scan distance. A code read from a table needs ~2 cm; from across a counter, 4–5 cm. Never print below 2 cm.",
+    title: "Match size to distance",
+    body: "The farther away people scan from, the bigger the code must be. On a table, about 2 cm works; across a counter, go 4–5 cm. Never go under 2 cm.",
   },
   {
     icon: ShieldCheck,
-    title: "Redundancy is cheap",
-    body: "Level Q or H costs a few extra modules and buys tolerance for scuffs, creases and sticky fingers. Print always means Q minimum.",
+    title: "Turn safety up for print",
+    body: "A higher safety level means the code still works if it gets scratched, creased or covered in sticky fingers. For anything printed, use High or Max.",
   },
   {
     icon: Printer,
-    title: "Print, then test",
-    body: "Screen proofs lie. Print the actual material, scan it with at least two different phones, from an angle, in dim light.",
+    title: "Print it, then try it",
+    body: "A screen can't tell you the truth. Print the real thing, then scan it with two different phones — at an angle, and in dim light.",
   },
   {
     icon: BookOpen,
-    title: "Keep the content lean",
-    body: "Every extra character makes the code denser. Short links, compact contact cards and to-the-point text keep codes sparse, fast and forgiving.",
+    title: "Keep it short",
+    body: "The more you put in, the busier the code gets. Short links and short messages make simpler codes that scan faster and survive more.",
   },
 ];
 
@@ -108,16 +108,16 @@ const FAQS = [
     a: "As large as you like. The SVG export is true vector, so a billboard is as sharp as a business card. For PNG, pick 2048px for large-format work and check the 300-DPI size readout under the proof.",
   },
   {
-    q: "How does the logo get into the code?",
-    a: "Two techniques, never a sticker on top. Stitch dithers your image at 3× the module grid into a fine halftone, then redraws the complete code over it — every module stays in place, so it scans at any error-correction level; because nothing is destroyed it can even run full-bleed (100%) for a photo-QR look. Inlay pixelates the mark into real modules that replace the data underneath — level H restores what's lost, and the live readout flags anything past the ~25% safe limit. Either way, a real decode test scans every version back with an actual decoder, so you know it reads before you print.",
+    q: "How does my picture get into the code?",
+    a: "Two ways, and it's never just pasted on top. 'Behind the code' turns your picture into a soft pattern and redraws the whole code over it, so nothing important is ever covered — it's safe at any size, even filling the entire code. 'Into the code' lets your picture take the place of some of the code's dots, which looks bolder, so keep it under about a quarter of the code. Either way, the app scans your code back with a real decoder as you build, so you always know it works before you print.",
   },
   {
-    q: "Why does the app insist on a light background?",
-    a: "Positive polarity — dark modules on a light field — is what camera pipelines are tuned for. Inverted codes fail on a meaningful share of real hardware, so the scan report calls them out as a risk.",
+    q: "Why does the app want a light background?",
+    a: "Phone cameras are built to read a dark code on a light background. A light code on a dark background fails on a lot of real phones, so the scan report warns you about it.",
   },
   {
-    q: "What's the quiet zone, really?",
-    a: "It's the empty margin that tells a scanner where the code begins. The standard sets it at four modules minimum; Stitchcode measures yours live and warns the moment you dip below spec.",
+    q: "What's the blank border for?",
+    a: "It's the empty space that shows a scanner exactly where the code begins. It needs to be at least four squares wide — the app measures yours as you build and warns you the moment it gets too thin.",
   },
 ];
 

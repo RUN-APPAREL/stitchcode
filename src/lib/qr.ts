@@ -204,8 +204,8 @@ export const EC_INFO: Record<
 > = {
   L: { label: "Low", recovery: "≈ 7% damage", capacity: "100% capacity", pct: 100 },
   M: { label: "Medium", recovery: "≈ 15% damage", capacity: "≈ 86% capacity", pct: 86 },
-  Q: { label: "Quartile", recovery: "≈ 25% damage", capacity: "≈ 66% capacity", pct: 66 },
-  H: { label: "High", recovery: "≈ 30% damage", capacity: "≈ 56% capacity", pct: 56 },
+  Q: { label: "High", recovery: "≈ 25% damage", capacity: "≈ 66% capacity", pct: 66 },
+  H: { label: "Max", recovery: "≈ 30% damage", capacity: "≈ 56% capacity", pct: 56 },
 };
 
 /* ------------------------------------------------------------------ */
