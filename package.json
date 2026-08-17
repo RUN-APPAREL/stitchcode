@@ -47,7 +47,7 @@
     "tailwindcss": "^4.1.11",
     "typescript": "^5.9.3",
     "vite": "^6.4.3",
-    "wait-on": "^8.0.5"
+    "wait-on": "^9.1.0"
   },
   "build": {
     "appId": "com.stitchcode.app",
